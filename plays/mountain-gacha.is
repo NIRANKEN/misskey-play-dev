@@ -1,0 +1,406 @@
+/// @ 1.0.0
+
+// ============================================================
+// 今日の山ガチャ ＋ ひとこと登山ガイド & Tips
+// ------------------------------------------------------------
+// Misskey Play（旧Flash）用の AiScript スクリプトです。
+//
+// ■ 使い方
+//   1. Misskeyで新しい Play を作成し、このファイルの内容をまるごと
+//      「スクリプト」欄に貼り付けてください。
+//   2. タイトル・概要（summary）・公開範囲は、このスクリプト自体には
+//      含まれていません。Play編集画面のフォームで別途設定してください。
+//        タイトル例: 今日の山ガチャ ＋ ひとこと登山ガイド
+//        概要例    : ボタンを押すと、今日のあなただけの一座が選ばれます。
+//                    標高・所在地・難易度・豆知識つき。（日替わり）
+//
+// ■ 仕様メモ
+//   - 結果は「日替わり固定（おみくじ式）」です。同じ日・同じユーザーで
+//     あれば、何度ボタンを押しても同じ山になります
+//     （Math:gen_rng を Play の ID・ユーザーID・今日の日付でシード）。
+//   - 現在は「日本百名山」より20座を収録しています。下の mountains 配列に
+//     同じ形のオブジェクトを追記していけば、100座まで拡張できます。
+//   - Misskey Play(AiScript)には画像をインライン表示する仕組み
+//     （Ui:C:image 等）が存在しないため、写真は Wikimedia Commons の
+//     ページへのリンクとして表示しています。リンクをホバー(PC)／
+//     長押し(スマホ)すると、Misskeyサーバー自身が取得したOGP画像が
+//     プレビュー表示されます（閲覧者側のURLプレビュー設定が有効な場合）。
+//   - 緯度経度は山頂付近のおおよその値です（Googleマップ誘導用の目安と
+//     してご利用ください。測量レベルの精度は保証していません）。
+// ============================================================
+
+let mountains = [
+	{
+		name: "富士山"
+		reading: "ふじさん"
+		elevation: 3776
+		location: "山梨県・静岡県"
+		lat: 35.3606
+		lng: 138.7274
+		difficulty: "中級（標高差が大きく、高山病対策が必要）"
+		tips: [
+			"日本一標高が高い独立峰で、世界文化遺産にも登録されている。"
+			"山開きは例年7月上旬〜9月上旬。山頂でご来光を拝む「御来光登山」が人気。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Fuji"
+	}
+	{
+		name: "槍ヶ岳"
+		reading: "やりがたけ"
+		elevation: 3180
+		location: "長野県・岐阜県（北アルプス）"
+		lat: 36.3403
+		lng: 137.6469
+		difficulty: "上級（岩場の連続、山頂直下は鎖・梯子場）"
+		tips: [
+			"尖った穂先が特徴的で「北アルプスの盟主」とも呼ばれる。"
+			"江戸時代に播隆上人が開山したと伝えられる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Yari"
+	}
+	{
+		name: "奥穂高岳"
+		reading: "おくほたかだけ"
+		elevation: 3190
+		location: "長野県・岐阜県（北アルプス）"
+		lat: 36.2894
+		lng: 137.6469
+		difficulty: "上級（岩稜帯の通過、梯子・鎖場が多い）"
+		tips: [
+			"穂高連峰の最高峰で、日本第3位の標高を誇る。"
+			"山頂には小さな祠が祀られている。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Okuhotaka"
+	}
+	{
+		name: "立山（雄山）"
+		reading: "たてやま（おやま）"
+		elevation: 3003
+		location: "富山県（北アルプス）"
+		lat: 36.5758
+		lng: 137.6217
+		difficulty: "初級〜中級（室堂まで交通機関あり、日帰り登山も可能）"
+		tips: [
+			"富士山・白山と並ぶ「日本三霊山」の一つ。"
+			"山頂には雄山神社峰本社が鎮座し、お祓いを受けてから登拝する慣習がある。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Tate"
+	}
+	{
+		name: "剱岳"
+		reading: "つるぎだけ"
+		elevation: 2999
+		location: "富山県（北アルプス）"
+		lat: 36.6208
+		lng: 137.6142
+		difficulty: "上級（「カニのタテバイ・ヨコバイ」など国内屈指の難所）"
+		tips: [
+			"かつては「日本最後の未踏峰」とも言われた険しい岩峰。"
+			"新田次郎の小説『劒岳 点の記』の舞台としても知られる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Tsurugi_(Toyama)"
+	}
+	{
+		name: "白馬岳"
+		reading: "しろうまだけ"
+		elevation: 2932
+		location: "長野県・富山県（北アルプス）"
+		lat: 36.7586
+		lng: 137.7592
+		difficulty: "中級〜上級（大雪渓の通過に技術と装備が必要）"
+		tips: [
+			"日本三大雪渓の一つ「白馬大雪渓」を登る人気ルートがある。"
+			"高山植物の宝庫として知られ、夏はお花畑が広がる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Shirouma"
+	}
+	{
+		name: "乗鞍岳"
+		reading: "のりくらだけ"
+		elevation: 3026
+		location: "長野県・岐阜県（北アルプス南部）"
+		lat: 36.1067
+		lng: 137.5561
+		difficulty: "初級（畳平までバスで行け、3000m峰の中でも登りやすい）"
+		tips: [
+			"馬の鞍のような形が名前の由来とされる。"
+			"最高点は剣ヶ峰。山頂付近は森林限界を超えたお花畑が広がる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Norikura"
+	}
+	{
+		name: "北岳"
+		reading: "きただけ"
+		elevation: 3193
+		location: "山梨県（南アルプス）"
+		lat: 35.6742
+		lng: 138.2394
+		difficulty: "中級〜上級（日本第2位の標高、標高差が大きい）"
+		tips: [
+			"富士山に次ぐ日本第2位の標高を誇る。"
+			"「キタダケソウ」など、この山だけに自生する固有種の高山植物がある。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Kita"
+	}
+	{
+		name: "赤岳（八ヶ岳）"
+		reading: "あかだけ（やつがたけ）"
+		elevation: 2899
+		location: "長野県・山梨県（八ヶ岳連峰）"
+		lat: 35.9711
+		lng: 138.3708
+		difficulty: "中級〜上級（山頂直下は急峻な岩場）"
+		tips: [
+			"八ヶ岳連峰の最高峰。"
+			"山肌が赤褐色に見えることが名前の由来とされる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Yatsugatake_Mountains"
+	}
+	{
+		name: "浅間山"
+		reading: "あさまやま"
+		elevation: 2568
+		location: "群馬県・長野県"
+		lat: 36.4061
+		lng: 138.5306
+		difficulty: "中級（活火山のため火口周辺の立入規制に注意）"
+		tips: [
+			"現在も活動を続ける活火山で、噴火警戒レベルにより登山規制がかかることがある。"
+			"江戸時代の天明大噴火は、日本の火山史でも特に有名な噴火の一つ。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Asama"
+	}
+	{
+		name: "谷川岳"
+		reading: "たにがわだけ"
+		elevation: 1977
+		location: "群馬県・新潟県"
+		lat: 36.7961
+		lng: 138.9319
+		difficulty: "中級（ロープウェイ利用コースもあれば、険しい岩壁もある）"
+		tips: [
+			"遭難者数の多さでも知られる山だが、ロープウェイで気軽に楽しめるコースもある。"
+			"「一ノ倉沢」の大岩壁は、クライマー憧れの地として知られる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Tanigawa"
+	}
+	{
+		name: "茶臼岳（那須岳）"
+		reading: "ちゃうすだけ（なすだけ）"
+		elevation: 1915
+		location: "栃木県（那須連山）"
+		lat: 37.1225
+		lng: 139.9636
+		difficulty: "初級（ロープウェイを使えば山頂まで気軽に行ける）"
+		tips: [
+			"那須連山の主峰で、山頂付近から今も噴煙が上がる活火山。"
+			"ロープウェイの山頂駅から歩けば、1時間ほどで山頂に立てる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Chausu_(Nasu)"
+	}
+	{
+		name: "燧ヶ岳"
+		reading: "ひうちがたけ"
+		elevation: 2356
+		location: "福島県（尾瀬）"
+		lat: 36.9772
+		lng: 139.2867
+		difficulty: "中級（尾瀬からのロングコースが基本）"
+		tips: [
+			"東北地方の最高峰。"
+			"尾瀬を象徴する山で、麓には尾瀬ヶ原・尾瀬沼が広がる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Hiuchi_(Fukushima)"
+	}
+	{
+		name: "雲取山"
+		reading: "くもとりやま"
+		elevation: 2017
+		location: "東京都・埼玉県・山梨県"
+		lat: 35.8531
+		lng: 138.9364
+		difficulty: "中級（東京都最高峰、日帰りはやや健脚向け）"
+		tips: [
+			"東京都の最高峰で、東京・埼玉・山梨の3都県にまたがる。"
+			"晴れた日には山頂から富士山を望むことができる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Kumotori"
+	}
+	{
+		name: "大山"
+		reading: "だいせん"
+		elevation: 1729
+		location: "鳥取県（中国地方）"
+		lat: 35.3703
+		lng: 133.5458
+		difficulty: "初級〜中級（夏山登山道は整備済み、西日本屈指の人気）"
+		tips: [
+			"中国地方の最高峰で、その美しい山容から「伯耆富士」とも呼ばれる。"
+			"山頂付近には国の天然記念物「ダイセンキャラボク純林」が広がる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Daisen_(mountain)"
+	}
+	{
+		name: "石鎚山"
+		reading: "いしづちさん"
+		elevation: 1982
+		location: "愛媛県（四国）"
+		lat: 33.7642
+		lng: 133.1156
+		difficulty: "中級（「試しの鎖」など修験道の鎖場がある）"
+		tips: [
+			"西日本の最高峰。"
+			"「鎖場」と呼ばれる修験道の行場があり、鎖を使って岩場を登る区間がある（迂回路も整備されている）。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Ishizuchi"
+	}
+	{
+		name: "白山"
+		reading: "はくさん"
+		elevation: 2702
+		location: "石川県・岐阜県"
+		lat: 36.1553
+		lng: 136.7717
+		difficulty: "中級（登山道は整備されているが標高差は大きい）"
+		tips: [
+			"富士山・立山と並ぶ「日本三名山（三霊山）」の一つ。"
+			"夏には高山植物のお花畑が山を彩ることで知られる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Haku"
+	}
+	{
+		name: "阿蘇山（高岳）"
+		reading: "あそさん（たかだけ）"
+		elevation: 1592
+		location: "熊本県"
+		lat: 32.8842
+		lng: 131.1042
+		difficulty: "初級（火山ガス濃度による立入規制に注意）"
+		tips: [
+			"世界有数の大きさを誇るカルデラを持つ活火山。"
+			"火山ガス濃度により火口周辺への立入が規制されることがあるため、事前の情報確認がおすすめ。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Aso"
+	}
+	{
+		name: "韓国岳（霧島山）"
+		reading: "からくにだけ（きりしまやま）"
+		elevation: 1700
+		location: "鹿児島県・宮崎県"
+		lat: 31.9342
+		lng: 130.8656
+		difficulty: "初級〜中級（霧島連山の最高峰、火口を巡る周回コースが人気）"
+		tips: [
+			"霧島連山の最高峰で、山頂からは火口湖「大浪池」などを望むことができる。"
+			"晴れた日には遠く韓国（からくに）が見えたという伝説が名前の由来とされる。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Karakuni"
+	}
+	{
+		name: "利尻山"
+		reading: "りしりざん"
+		elevation: 1721
+		location: "北海道（利尻島）"
+		lat: 45.1783
+		lng: 141.2422
+		difficulty: "上級（海抜0mからの標高差が大きく、日本最北の百名山）"
+		tips: [
+			"海からそびえ立つ独立峰で、その美しい姿から「利尻富士」とも呼ばれる。"
+			"標高0mの海岸から山頂まで登る、標高差の大きさが特徴。"
+		]
+		commons: "https://commons.wikimedia.org/wiki/Category:Mount_Rishiri"
+	}
+]
+
+@reveal() {
+	let dayRng = Math:gen_rng(`{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}`)
+	let tipRng = Math:gen_rng(`{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}:tip`)
+
+	let idx = dayRng(0, (mountains.len - 1))
+	let today = mountains[idx]
+	let tip = today.tips[tipRng(0, (today.tips.len - 1))]
+
+	let mapsUrl = `https://maps.google.com/?q={today.lat},{today.lng}`
+	let linksText = `[🖼 写真を見る（Wikimedia Commons）]({today.commons}) ／ [📍 地図で見る（Googleマップ）]({mapsUrl})`
+	let shareText = `🏔今日の山ガチャ{Str:lf}今日のあなたの山は「{today.name}」（{today.reading}）でした。{Str:lf}標高{today.elevation}m ・ {today.location} ・ 難易度: {today.difficulty}{Str:lf}{THIS_URL}`
+
+	Ui:render([
+		Ui:C:container({
+			align: 'center'
+			children: [
+				Ui:C:text({
+					text: '🎲 今日の山'
+					size: 1.1
+					bold: true
+				})
+				Ui:C:mfm({
+					text: `**{today.name}**`
+					size: 1.6
+					bold: true
+				})
+				Ui:C:text({
+					text: today.reading
+					size: 0.85
+				})
+				Ui:C:text({
+					text: `標高 {today.elevation}m ・ {today.location}`
+				})
+				Ui:C:text({
+					text: `難易度: {today.difficulty}`
+				})
+				Ui:C:container({
+					bgColor: '#24331f'
+					fgColor: '#ffffff'
+					padding: 14
+					rounded: true
+					children: [
+						Ui:C:mfm({
+							text: `💡 ひとことTips{Str:lf}{tip}`
+						})
+					]
+				})
+				Ui:C:mfm({
+					text: linksText
+				})
+				Ui:C:postFormButton({
+					text: '結果を投稿する'
+					rounded: true
+					primary: true
+					form: {
+						text: shareText
+					}
+				})
+			]
+		})
+	])
+}
+
+@main() {
+	Ui:render([
+		Ui:C:container({
+			align: 'center'
+			children: [
+				Ui:C:text({
+					text: '🏔 今日の山ガチャ'
+					size: 1.4
+					bold: true
+				})
+				Ui:C:text({
+					text: 'ボタンを押すと、今日のあなたの一座が選ばれます。標高・所在地・難易度・ひとことTipsつき。'
+				})
+				Ui:C:text({
+					text: '同じ日・同じユーザーなら、何度引いても同じ山が出ます。'
+					size: 0.85
+				})
+				Ui:C:button({
+					text: '🎲 今日の山を引く'
+					primary: true
+					rounded: true
+					onClick: reveal
+				})
+			]
+		})
+	])
+}
+
+main()
