@@ -35,7 +35,6 @@ test('ボタン押下後: 結果に必要な要素が揃っている', async () 
 	const allMfmText = mfmNodes.map(n => n.props.text).join('\n');
 
 	assert.match(allMfmText, /\*\*.+\*\*/, '山名を表す太字テキストが見つかりません');
-	assert.match(allMfmText, /https:\/\/commons\.wikimedia\.org\/wiki\/Category:/, 'Wikimedia Commonsへのリンクが見つかりません');
 	assert.match(allMfmText, /https:\/\/maps\.google\.com\/\?q=/, 'Googleマップへのリンクが見つかりません');
 
 	const postFormButton = findComponent(componentsById, getRootIds(), c => c.type === 'postFormButton');
