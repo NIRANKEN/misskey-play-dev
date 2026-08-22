@@ -1,0 +1,12 @@
+{
+	"name": "misskey-play-dev",
+	"private": true,
+	"type": "module",
+	"description": "Misskey PlayのAiScriptのコード置き場",
+	"scripts": {
+		"test": "node --test \"test/**/*.test.mjs\""
+	},
+	"devDependencies": {
+		"@syuilo/aiscript": "^1.2.1"
+	}
+}
