@@ -22,11 +22,23 @@ Misskey Play（旧Flash）用の AiScript スクリプトを開発・検証す�
    - 概要例: `ボタンを押すと、今日のあなただけの一座が選ばれます。標高・所在地・難易度・豆知識つき。（日替わり）`
 4. 保存して「Play」ボタンから動作を確認してください。
 
-#### 検証について
-
-このスクリプトはローカルにビルドした [`@syuilo/aiscript`](https://github.com/aiscript-dev/aiscript)（v1.3.0）を用いて、`Parser.parse` による構文検証、および Misskey本体の `Ui:C:*` / `Mk:*` API と同等のシグネチャを持つスタブを使った `Interpreter.exec`（ボタンクリックのシミュレーション込み）で動作確認済みです。300回の試行で全20座すべてが正しく選出され、例外なく動作することを確認しています。
-
 #### 既知の制約
 
 - Misskey Play（AiScript）には画像コンポーネント（`Ui:C:image`等）や、MFMの画像埋め込み構文が存在しないため、写真を常時インライン表示することはできません（Misskey本体のソースコードで確認済み）。
 - Wikimedia CommonsのリンクはCategoryページを使用しています。個々の写真ページへの直リンクではないため、公開前に必要に応じて更新してください。
+
+## テスト（検証の仕組み化）
+
+Play用のAiScriptは、Misskeyクライアント無しでも `@syuilo/aiscript`（npm公開パッケージ。Misskey本体が実際に依存しているバージョンに合わせています）を使ってNode上で構文・実行検証ができます。このリポジトリでは検証を毎回口頭で説明しなくて済むよう、テストコードとCIとして仕組み化しています。
+
+```sh
+npm install
+npm test
+```
+
+- `test/helpers/play-harness.mjs`: Misskey本体（`packages/frontend/src/aiscript/ui.ts` / `api.ts`）と同じシグネチャの `Ui:C:*` / `Mk:*` スタブを提供する共通ハーネス。新しいPlayスクリプトのテストからも再利用できます。
+- `test/plays-syntax.test.mjs`: `plays/*.is` を自動的に列挙し、バージョンプラグマの有無・構文エラーの有無を検証します（新しいスクリプトを追加すれば自動的に対象になります）。
+- `test/mountain-gacha.test.mjs`: `mountain-gacha.is` 固有のテスト。初期表示・ボタン押下後の描画内容・日替わり固定ロジックの決定性・全20座がシード違いで出現することを検証します。
+- `.github/workflows/test.yml`: push / PR のたびに `npm ci && npm test` をGitHub Actionsで自動実行します。
+
+新しいPlayを追加する場合も、`plays/` にスクリプトを置くだけで基本的な構文チェックは自動的に効きます。個別の動作検証を書きたい場合は `test/mountain-gacha.test.mjs` を参考に、`play-harness.mjs` のヘルパー（`runPlayScript` / `findComponent` / `findAllComponents`）を使ってテストを追加してください。
