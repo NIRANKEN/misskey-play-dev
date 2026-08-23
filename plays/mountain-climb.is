@@ -1,0 +1,408 @@
+/// @ 1.0.0
+
+// ============================================================
+// バーチャル登頂シミュレーター
+// ------------------------------------------------------------
+// Misskey Play（旧Flash）用の AiScript スクリプトです。
+//
+// ■ 使い方
+//   1. Misskeyで新しい Play を作成し、このファイルの内容をまるごと
+//      「スクリプト」欄に貼り付けてください。
+//   2. タイトル・概要（summary）・公開範囲は、このスクリプト自体には
+//      含まれていません。Play編集画面のフォームで別途設定してください。
+//        タイトル例: バーチャル登頂シミュレーター
+//        概要例    : 体力を管理しながら「登る」「休憩」などを選び、
+//                    山頂を目指すテキストアドベンチャー。1日1プレイ。
+//
+// ■ 仕様メモ
+//   - 「登る」「慎重に進む」「走って登る」「休憩（珈琲を飲む）」を選びながら
+//     体力（スタミナ）を管理し、山頂到達 → 下山完了を目指します。
+//   - 最初の選択画面でのみ「登山をしない」を選べます。選ぶと失敗ではなく、
+//     前向きな「観光日和」ハッピーエンドになります。
+//   - エンディングは全8種（登頂成功→下山完了／登り・下山それぞれの力尽きた／
+//     夢オチ／クマと冬眠／温泉から出られない／山小屋バイトにハマる／登山しない）。
+//   - 結果は「1日1回」固定です。Mk:save / Mk:load で当日の進行状況・結果を
+//     保存し、同じ日にもう一度開いた場合は続き（または確定した結果）を
+//     そのまま表示します。日付が変われば新規プレイになります。
+//   - 【既知の制約】Mk:save はブラウザのローカルストレージ相当のスコープです。
+//     山ガチャの日替わり乱数（アカウント＋サーバー側で再現可能）とは異なり、
+//     別端末やキャッシュ削除では「1日1回」の制限を回避できてしまいます。
+// ============================================================
+
+let STAMINA_MAX = 100
+let CLIMB_GOAL = 100
+let DESCEND_GOAL = 60
+let BEAR_CHANCE = 12
+let DREAM_CHANCE = 12
+let REST_JOKE_CHANCE = 20
+
+var stamina = STAMINA_MAX
+var progress = 0
+var progress2 = 0
+var phase = 'climb'
+var turn = 0
+var restStreak = 0
+var ending = null
+var logText = ''
+
+@today() {
+	`{Date:year()}-{Date:month()}-{Date:day()}`
+}
+
+@addLog(line) {
+	logText = if logText == '' { line } else { `{logText}{Str:lf}{line}` }
+}
+
+@persist() {
+	Mk:save('mc_state', {
+		date: today()
+		stamina: stamina
+		progress: progress
+		progress2: progress2
+		phase: phase
+		turn: turn
+		restStreak: restStreak
+		ending: ending
+		logText: logText
+	})
+}
+
+@finish() {
+	phase = 'end'
+	persist()
+	render()
+}
+
+@endingInfo() {
+	if ending == 'summit_descend' {
+		{
+			effect: `$[x2 $[sparkle 🎉 下山完了！ 🎉]]`
+			body: `見事、山頂を制覇して無事に下山しました！お疲れ様でした。{Str:lf}最終体力: {stamina} / {STAMINA_MAX}`
+			share: `⛰️バーチャル登頂シミュレーター{Str:lf}登頂成功、そして下山完了！🎉{Str:lf}最終体力: {stamina} / {STAMINA_MAX}{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'exhausted_climb' {
+		{
+			effect: `$[jelly 😵 力尽きた…]`
+			body: '足がガクガクで、これ以上一歩も動けない…。無理は禁物、また今度リベンジしよう。'
+			share: `😵バーチャル登頂シミュレーター{Str:lf}登山の途中で力尽きてしまいました…。また今度リベンジ！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'exhausted_descend' {
+		{
+			effect: `$[jelly 😵 もう少しだったのに…]`
+			body: 'もう少しで下山だったのに、力尽きて座り込んでしまった…。'
+			share: `😵バーチャル登頂シミュレーター{Str:lf}下山の途中で力尽きてしまいました…。もう少しだったのに！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'dream' {
+		{
+			effect: `$[shake 😴 …ハッ！]`
+			body: '足を滑らせた…！と思った次の瞬間、目の前には見慣れた自分の部屋の天井が。全部、夢だったらしい。'
+			share: `😴バーチャル登頂シミュレーター{Str:lf}気づいたら布団の中でした。登山、まさかの夢オチ。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'bear' {
+		{
+			effect: `$[rotate 🐻 …仲良し？]`
+			body: '慎重に進んでいたら、茂みからクマがひょっこり。なぜか意気投合し、そのまま一緒に冬眠することになった。'
+			share: `🐻バーチャル登頂シミュレーター{Str:lf}クマと意気投合し、一緒に冬眠することになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'onsen' {
+		{
+			effect: `$[shake ♨️ 気持ちよすぎる…]`
+			body: '下山中に見つけた秘湯があまりに気持ちよく、気づけば日が暮れていた。下山はまた明日にしよう。'
+			share: `♨️バーチャル登頂シミュレーター{Str:lf}秘湯から出られなくなりました。下山はまた明日。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'lodge' {
+		{
+			effect: `$[jelly ☕ ハマった…]`
+			body: '山小屋のマスターが淹れてくれたコーヒーに感動し、気づけばそこで働き始めていた。下山する日はいつになるやら。'
+			share: `☕バーチャル登頂シミュレーター{Str:lf}山小屋のバイトにハマってしまいました。下山はいつになるやら。{Str:lf}{THIS_URL}`
+		}
+	} else {
+		{
+			effect: `$[jelly ☕🍵 今日はゆっくり観光日和 🍵☕]`
+			body: '「無理は禁物！」今日はゆっくり山麓を観光することにした。次の登頂はまた気が向いたときに。'
+			share: `🍵バーチャル登頂シミュレーター{Str:lf}今日は登山をせず、のんびり観光することにしました。{Str:lf}{THIS_URL}`
+		}
+	}
+}
+
+@doClimb(kind) {
+	turn = (turn + 1)
+
+	if kind == 'normal' {
+		let d = Math:rnd(20, 30)
+		let c = Math:rnd(15, 20)
+		progress = (progress + d)
+		stamina = (stamina - c)
+		addLog(`🥾 登る → {d}m分進んだ（体力 -{c}）`)
+	} elif kind == 'careful' {
+		let d = Math:rnd(10, 15)
+		let c = Math:rnd(6, 10)
+		progress = (progress + d)
+		stamina = (stamina - c)
+		if Math:rnd(1, 100) <= BEAR_CHANCE {
+			ending = 'bear'
+			finish()
+			return null
+		}
+		addLog(`🐾 慎重に進む → {d}m分進んだ（体力 -{c}）`)
+	} elif kind == 'run' {
+		let d = Math:rnd(28, 38)
+		let c = Math:rnd(28, 40)
+		progress = (progress + d)
+		stamina = (stamina - c)
+		if Math:rnd(1, 100) <= DREAM_CHANCE {
+			ending = 'dream'
+			finish()
+			return null
+		}
+		addLog(`🏃 走って登る → 一気に{d}m分進んだ（体力 -{c}）`)
+	} elif kind == 'rest' {
+		let h = Math:rnd(25, 35)
+		stamina = (stamina + h)
+		if stamina > STAMINA_MAX { stamina = STAMINA_MAX }
+		addLog(`☕ 休憩（珈琲を飲む） → 体力 +{h}`)
+	}
+
+	if progress >= CLIMB_GOAL {
+		progress = CLIMB_GOAL
+		stamina = (stamina + 10)
+		if stamina > STAMINA_MAX { stamina = STAMINA_MAX }
+		phase = 'summit'
+		persist()
+		render()
+		return null
+	}
+
+	if stamina <= 0 {
+		stamina = 0
+		ending = 'exhausted_climb'
+		finish()
+		return null
+	}
+
+	persist()
+	render()
+}
+
+@doDescend(kind) {
+	turn = (turn + 1)
+
+	if kind == 'carefulDown' {
+		let d = Math:rnd(20, 30)
+		let c = Math:rnd(4, 8)
+		progress2 = (progress2 + d)
+		stamina = (stamina - c)
+		restStreak = 0
+		addLog(`🥾 慎重に下山 → {d}m分進んだ（体力 -{c}）`)
+	} elif kind == 'runDown' {
+		let d = Math:rnd(30, 40)
+		let c = Math:rnd(15, 20)
+		progress2 = (progress2 + d)
+		stamina = (stamina - c)
+		restStreak = 0
+		addLog(`🏃 走って下山 → 一気に{d}m分進んだ（体力 -{c}）`)
+	} elif kind == 'restDown' {
+		let h = Math:rnd(20, 30)
+		stamina = (stamina + h)
+		if stamina > STAMINA_MAX { stamina = STAMINA_MAX }
+		restStreak = (restStreak + 1)
+		addLog(`☕ 休憩（コーヒーで一服） → 体力 +{h}`)
+
+		let jokeChance = (REST_JOKE_CHANCE + (restStreak * 10))
+		if Math:rnd(1, 100) <= jokeChance {
+			ending = if (Math:rnd(0, 1) == 0) { 'onsen' } else { 'lodge' }
+			finish()
+			return null
+		}
+	}
+
+	if progress2 >= DESCEND_GOAL {
+		progress2 = DESCEND_GOAL
+		ending = 'summit_descend'
+		finish()
+		return null
+	}
+
+	if stamina <= 0 {
+		stamina = 0
+		ending = 'exhausted_descend'
+		finish()
+		return null
+	}
+
+	persist()
+	render()
+}
+
+@beginDescend() {
+	phase = 'descend'
+	persist()
+	render()
+}
+
+@chooseNoClimb() {
+	ending = 'no_climb'
+	phase = 'end'
+	persist()
+	render()
+}
+
+@render() {
+	if phase == 'climb' {
+		var children = [
+			Ui:C:text({
+				text: '⛰️ バーチャル登頂シミュレーター'
+				size: 1.4
+				bold: true
+			})
+			Ui:C:text({
+				text: '「登る」「慎重に進む」「走って登る」「休憩」を選びながら、山頂を目指そう。体力が尽きると力尽きてしまう…。'
+				size: 0.85
+			})
+			Ui:C:text({
+				text: `体力: {stamina} / {STAMINA_MAX}`
+			})
+			Ui:C:text({
+				text: `現在地: {progress} / {CLIMB_GOAL}（山頂まで）`
+			})
+		]
+		if logText != '' {
+			children.push(Ui:C:mfm({ text: logText }))
+		}
+		children.push(Ui:C:button({
+			text: '🥾 登る'
+			primary: true
+			rounded: true
+			onClick: @() { doClimb('normal') }
+		}))
+		children.push(Ui:C:button({
+			text: '🐾 慎重に進む'
+			rounded: true
+			onClick: @() { doClimb('careful') }
+		}))
+		children.push(Ui:C:button({
+			text: '🏃 走って登る'
+			rounded: true
+			onClick: @() { doClimb('run') }
+		}))
+		children.push(Ui:C:button({
+			text: '☕ 休憩（珈琲を飲む）'
+			rounded: true
+			onClick: @() { doClimb('rest') }
+		}))
+		if turn == 0 {
+			children.push(Ui:C:button({
+				text: '🚶 登山をしない（観光する）'
+				rounded: true
+				onClick: chooseNoClimb
+			}))
+		}
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: children
+			})
+		])
+	} elif phase == 'summit' {
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: [
+					Ui:C:mfm({
+						text: `$[tada 🏔️ 登頂成功！]`
+						size: 1.6
+					})
+					Ui:C:text({
+						text: `ついに山頂に到着した！最終体力: {stamina} / {STAMINA_MAX}`
+					})
+					Ui:C:button({
+						text: '🚶 下山を始める'
+						primary: true
+						rounded: true
+						onClick: beginDescend
+					})
+				]
+			})
+		])
+	} elif phase == 'descend' {
+		var childrenD = [
+			Ui:C:text({
+				text: '🚶 下山中…'
+				size: 1.2
+				bold: true
+			})
+			Ui:C:text({
+				text: `体力: {stamina} / {STAMINA_MAX}`
+			})
+			Ui:C:text({
+				text: `下山の進み: {progress2} / {DESCEND_GOAL}`
+			})
+		]
+		if logText != '' {
+			childrenD.push(Ui:C:mfm({ text: logText }))
+		}
+		childrenD.push(Ui:C:button({
+			text: '🥾 慎重に下山'
+			primary: true
+			rounded: true
+			onClick: @() { doDescend('carefulDown') }
+		}))
+		childrenD.push(Ui:C:button({
+			text: '🏃 走って下山'
+			rounded: true
+			onClick: @() { doDescend('runDown') }
+		}))
+		childrenD.push(Ui:C:button({
+			text: '☕ 休憩（コーヒーで一服）'
+			rounded: true
+			onClick: @() { doDescend('restDown') }
+		}))
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: childrenD
+			})
+		])
+	} elif phase == 'end' {
+		let info = endingInfo()
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: [
+					Ui:C:mfm({
+						text: info.effect
+						size: 1.5
+					})
+					Ui:C:text({
+						text: info.body
+					})
+					Ui:C:postFormButton({
+						text: '結果を投稿する'
+						rounded: true
+						primary: true
+						form: {
+							text: info.share
+						}
+					})
+				]
+			})
+		])
+	}
+}
+
+@main() {
+	let saved = Mk:load('mc_state')
+	if (saved != null) && (saved.date == today()) {
+		stamina = saved.stamina
+		progress = saved.progress
+		progress2 = saved.progress2
+		phase = saved.phase
+		turn = saved.turn
+		restStreak = saved.restStreak
+		ending = saved.ending
+		logText = saved.logText
+	}
+	render()
+}
+
+main()

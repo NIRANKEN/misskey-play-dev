@@ -16,6 +16,7 @@ import { Parser, Interpreter, values, utils } from '@syuilo/aiscript';
 export function createStubEnv(overrides = {}) {
 	const componentsById = new Map();
 	let lastRenderRootIds = [];
+	const mkStore = overrides.mkStore ?? new Map();
 
 	const toJs = (v) => (v === undefined ? undefined : utils.valToJs(v));
 
@@ -59,9 +60,20 @@ export function createStubEnv(overrides = {}) {
 		'Mk:confirm': values.FN_NATIVE(async () => values.TRUE),
 		'Mk:toast': values.FN_NATIVE(() => values.NULL),
 		'Mk:api': values.FN_NATIVE(async () => values.NULL),
-		'Mk:save': values.FN_NATIVE(() => values.NULL),
-		'Mk:load': values.FN_NATIVE(() => values.NULL),
-		'Mk:remove': values.FN_NATIVE(() => values.NULL),
+		'Mk:save': values.FN_NATIVE(([key, value]) => {
+			utils.assertString(key);
+			mkStore.set(key.value, toJs(value));
+			return values.NULL;
+		}),
+		'Mk:load': values.FN_NATIVE(([key]) => {
+			utils.assertString(key);
+			return mkStore.has(key.value) ? utils.jsToVal(mkStore.get(key.value)) : values.NULL;
+		}),
+		'Mk:remove': values.FN_NATIVE(([key]) => {
+			utils.assertString(key);
+			mkStore.delete(key.value);
+			return values.NULL;
+		}),
 		'Mk:url': values.FN_NATIVE(() => values.STR(thisUrl)),
 
 		'Ui:render': values.FN_NATIVE(([children]) => {
@@ -96,6 +108,7 @@ export function createStubEnv(overrides = {}) {
 	return {
 		env,
 		componentsById,
+		mkStore,
 		getRootIds: () => lastRenderRootIds,
 	};
 }
@@ -139,12 +152,12 @@ export async function runPlayScript(scriptPath, overrides = {}) {
 export async function runPlaySource(script, overrides = {}) {
 	const parser = new Parser();
 	const ast = parser.parse(script); // 構文エラーがあればここで例外
-	const { env, componentsById, getRootIds } = createStubEnv(overrides);
+	const { env, componentsById, mkStore, getRootIds } = createStubEnv(overrides);
 	const interpreter = new Interpreter(env, {
 		in: async () => '',
 		out: () => {},
 		log: () => {},
 	});
 	await interpreter.exec(ast); // 実行時エラーがあればここで例外
-	return { componentsById, getRootIds };
+	return { componentsById, mkStore, getRootIds };
 }
