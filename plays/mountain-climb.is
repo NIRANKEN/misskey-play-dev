@@ -19,8 +19,14 @@
 //     体力（スタミナ）を管理し、山頂到達 → 下山完了を目指します。
 //   - 最初の選択画面でのみ「登山をしない」を選べます。選ぶと失敗ではなく、
 //     前向きな「観光日和」ハッピーエンドになります。
-//   - エンディングは全8種（登頂成功→下山完了／登り・下山それぞれの力尽きた／
-//     夢オチ／クマと冬眠／温泉から出られない／山小屋バイトにハマる／登山しない）。
+//   - エンディングは全14種（登頂成功→下山完了／登り・下山それぞれの力尽きた／
+//     登山しない（観光日和）に加え、ネタエンドが10種：夢オチ／UFOと遭遇／
+//     クマと冬眠／天狗に山伏修行／山ガチャとの運命の再会／野鳥観察に夢中／
+//     下山ダッシュが駅伝スカウト／下山中の投稿がバズる／温泉から出られない／
+//     山小屋バイトにハマる）。
+//   - 「登る」（通常の登り）と「慎重に下山」はネタエンドの抽選が一切無い、
+//     常に安全なアクションです。それ以外のアクションには一定確率でネタエンドの
+//     抽選が発生します。
 //   - 結果は「1日1回」固定です。Mk:save / Mk:load で当日の進行状況・結果を
 //     保存し、同じ日にもう一度開いた場合は続き（または確定した結果）を
 //     そのまま表示します。日付が変われば新規プレイになります。
@@ -32,9 +38,11 @@
 let STAMINA_MAX = 100
 let CLIMB_GOAL = 100
 let DESCEND_GOAL = 60
-let BEAR_CHANCE = 12
-let DREAM_CHANCE = 12
-let REST_JOKE_CHANCE = 20
+let BEAR_TENGU_CHANCE = 12
+let DREAM_UFO_CHANCE = 12
+let REST_CLIMB_JOKE_CHANCE = 10
+let RUN_DESCEND_JOKE_CHANCE = 10
+let REST_DESCEND_JOKE_CHANCE = 20
 
 var stamina = STAMINA_MAX
 var progress = 0
@@ -98,11 +106,47 @@ var logText = ''
 			body: '足を滑らせた…！と思った次の瞬間、目の前には見慣れた自分の部屋の天井が。全部、夢だったらしい。'
 			share: `😴バーチャル登頂シミュレーター{Str:lf}気づいたら布団の中でした。登山、まさかの夢オチ。{Str:lf}{THIS_URL}`
 		}
+	} elif ending == 'ufo' {
+		{
+			effect: `$[spin 🛸 ようこそ宇宙へ]`
+			body: '夜空に光る物体を発見…と思ったら未確認飛行物体（UFO）だった。宇宙人と意気投合し、そのまま宇宙の旅に出かけることになった。'
+			share: `🛸バーチャル登頂シミュレーター{Str:lf}UFOと遭遇し、そのまま宇宙旅行に出発しました。{Str:lf}{THIS_URL}`
+		}
 	} elif ending == 'bear' {
 		{
 			effect: `$[rotate 🐻 …仲良し？]`
 			body: '慎重に進んでいたら、茂みからクマがひょっこり。なぜか意気投合し、そのまま一緒に冬眠することになった。'
 			share: `🐻バーチャル登頂シミュレーター{Str:lf}クマと意気投合し、一緒に冬眠することになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'tengu' {
+		{
+			effect: `$[jump 👺 修行の道へ]`
+			body: '慎重に進んでいたら、木の上から天狗が舞い降りてきた。そのまま山伏修行に連れていかれることになった。'
+			share: `👺バーチャル登頂シミュレーター{Str:lf}天狗にスカウトされ、山伏修行に旅立つことになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'gacha_reunion' {
+		{
+			effect: `$[jelly 🎲 運命の再会]`
+			body: 'ふと足元を見ると、見覚えのある山名の標識が。そういえば「今日の山ガチャ」で出会った山と同じだった…！運命を感じて、しばらくその場に立ち尽くしてしまった。'
+			share: `🎲バーチャル登頂シミュレーター{Str:lf}「今日の山ガチャ」で出会った山と同じ山だと気づき、運命を感じて長居してしまいました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'bird_watching' {
+		{
+			effect: `$[jelly 🐦 夢中で観察]`
+			body: '休憩していたら、珍しい野鳥が目の前に。夢中でずっと観察しているうちに、すっかり日が傾いていた。'
+			share: `🐦バーチャル登頂シミュレーター{Str:lf}野鳥観察に夢中になり、気づけば日が傾いていました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'ekiden_scout' {
+		{
+			effect: `$[jump 🏃 まさかのスカウト]`
+			body: '下山中の軽快な走りを、たまたま通りかかった駅伝チームの監督に見初められた。そのままスカウトされ、練習に付き合うことになった。'
+			share: `🏃バーチャル登頂シミュレーター{Str:lf}下山中の走りが目に留まり、駅伝チームにスカウトされてしまいました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'sns_addiction' {
+		{
+			effect: `$[shake 📱 バズってしまった]`
+			body: '下山中に見た絶景をつい写真に撮ってSNSに投稿したら、想像以上の反響が。返信対応に追われ、下山どころではなくなった。'
+			share: `📱バーチャル登頂シミュレーター{Str:lf}下山中の投稿がバズってしまい、返信対応で下山どころではなくなりました。{Str:lf}{THIS_URL}`
 		}
 	} elif ending == 'onsen' {
 		{
@@ -139,8 +183,8 @@ var logText = ''
 		let c = Math:rnd(6, 10)
 		progress = (progress + d)
 		stamina = (stamina - c)
-		if Math:rnd(1, 100) <= BEAR_CHANCE {
-			ending = 'bear'
+		if Math:rnd(1, 100) <= BEAR_TENGU_CHANCE {
+			ending = if (Math:rnd(0, 1) == 0) { 'bear' } else { 'tengu' }
 			finish()
 			return null
 		}
@@ -150,8 +194,8 @@ var logText = ''
 		let c = Math:rnd(28, 40)
 		progress = (progress + d)
 		stamina = (stamina - c)
-		if Math:rnd(1, 100) <= DREAM_CHANCE {
-			ending = 'dream'
+		if Math:rnd(1, 100) <= DREAM_UFO_CHANCE {
+			ending = if (Math:rnd(0, 1) == 0) { 'dream' } else { 'ufo' }
 			finish()
 			return null
 		}
@@ -160,6 +204,11 @@ var logText = ''
 		let h = Math:rnd(25, 35)
 		stamina = (stamina + h)
 		if stamina > STAMINA_MAX { stamina = STAMINA_MAX }
+		if Math:rnd(1, 100) <= REST_CLIMB_JOKE_CHANCE {
+			ending = if (Math:rnd(0, 1) == 0) { 'gacha_reunion' } else { 'bird_watching' }
+			finish()
+			return null
+		}
 		addLog(`☕ 休憩（珈琲を飲む） → 体力 +{h}`)
 	}
 
@@ -200,6 +249,11 @@ var logText = ''
 		progress2 = (progress2 + d)
 		stamina = (stamina - c)
 		restStreak = 0
+		if Math:rnd(1, 100) <= RUN_DESCEND_JOKE_CHANCE {
+			ending = if (Math:rnd(0, 1) == 0) { 'sns_addiction' } else { 'ekiden_scout' }
+			finish()
+			return null
+		}
 		addLog(`🏃 走って下山 → 一気に{d}m分進んだ（体力 -{c}）`)
 	} elif kind == 'restDown' {
 		let h = Math:rnd(20, 30)
@@ -208,7 +262,7 @@ var logText = ''
 		restStreak = (restStreak + 1)
 		addLog(`☕ 休憩（コーヒーで一服） → 体力 +{h}`)
 
-		let jokeChance = (REST_JOKE_CHANCE + (restStreak * 10))
+		let jokeChance = (REST_DESCEND_JOKE_CHANCE + (restStreak * 10))
 		if Math:rnd(1, 100) <= jokeChance {
 			ending = if (Math:rnd(0, 1) == 0) { 'onsen' } else { 'lodge' }
 			finish()

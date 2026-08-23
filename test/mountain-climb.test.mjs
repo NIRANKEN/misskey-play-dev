@@ -198,7 +198,7 @@ test('persist: 行動するたびに Mk:save で当日の進行状況が保存�
 	assert.equal(saved.turn, 1);
 });
 
-test('統計: 「走って登る」を連打すると、力尽きる／夢オチ／登頂成功が十分な試行の中で実際に出現する', async () => {
+test('統計: 「走って登る」を連打すると、力尽きる／夢オチ／UFO遭遇／登頂成功が十分な試行の中で実際に出現する', async () => {
 	const seenEndings = new Set();
 	const trials = 150;
 
@@ -209,10 +209,11 @@ test('統計: 「走って登る」を連打すると、力尽きる／夢オチ
 
 	assert.ok(seenEndings.has('exhausted_climb'), `${trials}回試行しても「力尽きた（登り）」が出現しませんでした`);
 	assert.ok(seenEndings.has('dream'), `${trials}回試行しても「夢オチ」が出現しませんでした`);
+	assert.ok(seenEndings.has('ufo'), `${trials}回試行しても「UFOと遭遇」が出現しませんでした`);
 	assert.ok(seenEndings.has('summit_descend'), `${trials}回試行しても「登頂成功→下山完了」が出現しませんでした`);
 });
 
-test('統計: 「慎重に進む」を連打すると、クマと冬眠／登頂成功が十分な試行の中で実際に出現する', async () => {
+test('統計: 「慎重に進む」を連打すると、クマと冬眠／天狗に山伏修行／登頂成功が十分な試行の中で実際に出現する', async () => {
 	const seenEndings = new Set();
 	const trials = 150;
 
@@ -222,6 +223,38 @@ test('統計: 「慎重に進む」を連打すると、クマと冬眠／登頂
 	}
 
 	assert.ok(seenEndings.has('bear'), `${trials}回試行しても「クマと冬眠」が出現しませんでした`);
+	assert.ok(seenEndings.has('tengu'), `${trials}回試行しても「天狗に山伏修行」が出現しませんでした`);
+	assert.ok(seenEndings.has('summit_descend'), `${trials}回試行しても「登頂成功→下山完了」が出現しませんでした`);
+});
+
+test('統計: 登り中に「休憩」を連打すると、山ガチャとの運命の再会／野鳥観察のネタエンドが十分な試行の中で実際に出現する', async () => {
+	const seenEndings = new Set();
+	const trials = 60;
+
+	for (let i = 0; i < trials; i++) {
+		const { saved } = await autoPlay('休憩', { thisId: `climb_rest_${i}`, userId: `user_climb_rest_${i}` }, 40);
+		if (saved && saved.ending) seenEndings.add(saved.ending);
+	}
+
+	assert.ok(seenEndings.has('gacha_reunion'), `${trials}回試行しても「山ガチャとの運命の再会」が出現しませんでした`);
+	assert.ok(seenEndings.has('bird_watching'), `${trials}回試行しても「野鳥観察に夢中」が出現しませんでした`);
+});
+
+test('統計: 安全に登頂後「走って下山」を連打すると、駅伝スカウト／SNSでバズる／下山完了が十分な試行の中で実際に出現する', async () => {
+	const seenEndings = new Set();
+	const trials = 200;
+
+	for (let i = 0; i < trials; i++) {
+		const { saved } = await autoPlayPhased(
+			(phase) => (phase === 'descend' ? '走って' : '登る'),
+			{ thisId: `descend_run_${i}`, userId: `user_descend_run_${i}` },
+			20,
+		);
+		if (saved && saved.ending) seenEndings.add(saved.ending);
+	}
+
+	assert.ok(seenEndings.has('ekiden_scout'), `${trials}回試行しても「駅伝スカウト」が出現しませんでした`);
+	assert.ok(seenEndings.has('sns_addiction'), `${trials}回試行しても「SNSでバズる」が出現しませんでした`);
 	assert.ok(seenEndings.has('summit_descend'), `${trials}回試行しても「登頂成功→下山完了」が出現しませんでした`);
 });
 
