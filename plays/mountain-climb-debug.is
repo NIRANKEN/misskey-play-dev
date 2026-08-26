@@ -1,29 +1,17 @@
 /// @ 1.0.0
 
 // ============================================================
-// 本日の登山チャレンジ！🏔️ :blobcat_dotadota_run:
+// 本日の登山チャレンジ！🏔️ 【実機検証・デバッグ用】
 // ------------------------------------------------------------
-// Misskey Play（旧Flash）用の AiScript スクリプトです。
+// Misskey Play で実機のUI・アニメーション・全選択肢・エンディングを
+// 自由に切り替えて検証するためのデバッグ機能付きスクリプトです。
 //
-// ■ 使い方
-//   1. Misskeyで新しい Play を作成し、このファイルの内容をまるごと
-//      「スクリプト」欄に貼り付けてください。
-//   2. タイトル・概要（summary）・公開範囲は、このスクリプト自体には
-//      含まれていません。Play編集画面のフォームで別途設定してください。
-//        タイトル例: 本日の登山チャレンジ！
-//        概要例    : 3手のルート選択で山頂と下山を目指すテキストアドベンチャー。
-//                    遭難確定の魔山を「登山しない」で回避する直感も重要！（日替わり）
-//
-// ■ 仕様メモ
-//   - 今日の山と現地のヒントは日替わり固定（Math:gen_rng）です。
-//   - 結果画面から「もう一度挑戦する」で、その日の山を何度でもやり直して別ルートを試せます。
-//   - ゲームは全3手（登り2手＋下山1手）でテンポよく決着します。
-//   - 今日の山タイプは4種類（各25%の完全均等）：
-//       1. 超低山・お散歩（登頂は確実、下山は3択中2つ成功・1つネタエンド）
-//       2. 本格名山（適切なルートを選べば下山クリア可能）
-//       3. 険峰（登頂はできるが下山は全滅）
-//       4. 遭難必至の魔山（入山すると全滅。初手の「登山をしない」が正解）
-//   - エンディングは全22種（完全制覇、神回避、観光、登頂止まり、力尽きた3種、ネタエンド15種）。
+// ■ デバッグ機能
+//   - 画面上部の折りたたみパネルから以下を操作可能:
+//     1. 山タイプ切り替え（超低山 / 本格名山 / 険峰 / 魔山）
+//     2. フェーズ直接ジャンプ（第1手 / 第2手 / 登頂 / 下山）
+//     3. 全22種のエンディング直接プレビュー（ドロップダウン選択）
+//     4. セーブデータ削除＆初期化
 // ============================================================
 
 let lowMountains = [
@@ -443,9 +431,93 @@ var logText = ''
 	}
 }
 
+// ------------------------------------------------------------
+// デバッグ専用UIコンポーネント
+// ------------------------------------------------------------
+@buildDebugPanel() {
+	let allEndings = [
+		{ text: '完全制覇', value: 'summit_descend' }
+		{ text: '神回避', value: 'kanko_great' }
+		{ text: '観光日和', value: 'kanko_normal' }
+		{ text: '登頂止まり', value: 'summit_stuck' }
+		{ text: '力尽き(登山口)', value: 'exhausted_climb' }
+		{ text: '力尽き(山頂直前)', value: 'exhausted_summit' }
+		{ text: '力尽き(下山中)', value: 'exhausted_descend' }
+		{ text: 'ネタ: クマ', value: 'bear' }
+		{ text: 'ネタ: 天狗', value: 'tengu' }
+		{ text: 'ネタ: UFO', value: 'ufo' }
+		{ text: 'ネタ: 鹿', value: 'deer_master' }
+		{ text: 'ネタ: キノコ', value: 'mushroom' }
+		{ text: 'ネタ: 夢', value: 'dream' }
+		{ text: 'ネタ: 運命の再会', value: 'gacha_reunion' }
+		{ text: 'ネタ: 野鳥観察', value: 'bird_watching' }
+		{ text: 'ネタ: 異世界転移', value: 'isekai' }
+		{ text: 'ネタ: 猫カフェ', value: 'cat_cafe' }
+		{ text: 'ネタ: 駅伝スカウト', value: 'ekiden_scout' }
+		{ text: 'ネタ: SNS中毒', value: 'sns_addiction' }
+		{ text: 'ネタ: 秘湯温泉', value: 'onsen' }
+		{ text: 'ネタ: 山小屋珈琲', value: 'lodge' }
+		{ text: 'ネタ: パラグライダー', value: 'paraglider' }
+	]
+
+	Ui:C:folder({
+		title: '🛠️ 【検証用デバッグパネル】（タップして開閉）'
+		opened: false
+		children: [
+			Ui:C:container({
+				padding: 10
+				bgColor: '#1e2430'
+				rounded: true
+				children: [
+					Ui:C:text({ text: `現在: Type={mountainType}, Phase={phase}, Step={step}`, size: 0.85 })
+					Ui:C:text({ text: '▼ 山タイプを変更:', bold: true })
+					Ui:C:buttons({
+						buttons: [
+							{ text: '超低山(0)', onClick: @() { mountainType = 0; mountainIdx = 0; hintIdx = 0; render() } }
+							{ text: '名山(1)', onClick: @() { mountainType = 1; mountainIdx = 0; hintIdx = 0; render() } }
+							{ text: '険峰(2)', onClick: @() { mountainType = 2; mountainIdx = 0; hintIdx = 0; render() } }
+							{ text: '魔山(3)', onClick: @() { mountainType = 3; mountainIdx = 0; hintIdx = 0; render() } }
+						]
+					})
+					Ui:C:text({ text: '▼ フェーズを直接開く:', bold: true })
+					Ui:C:buttons({
+						buttons: [
+							{ text: '第1手', onClick: @() { phase = 'start'; step = 1; render() } }
+							{ text: '第2手', onClick: @() { phase = 'step2'; step = 2; render() } }
+							{ text: '登頂成功', onClick: @() { phase = 'summit'; render() } }
+							{ text: '下山(第3手)', onClick: @() { phase = 'descend'; step = 3; render() } }
+						]
+					})
+					Ui:C:text({ text: '▼ エンディング画面をプレビュー:', bold: true })
+					Ui:C:select({
+						items: allEndings
+						onChange: @(v) {
+							ending = v
+							phase = 'end'
+							render()
+						}
+					})
+					Ui:C:button({
+						text: '🗑️ セーブデータ全消去＆初期化'
+						onClick: @() {
+							Mk:remove('mc_state')
+							initSeed()
+							restart()
+						}
+					})
+				]
+			})
+		]
+	})
+}
+
 @render() {
 	let m = getMountain()
 	let hint = getHint()
+
+	var mainChildren = [
+		buildDebugPanel()
+	]
 
 	if phase == 'start' {
 		var children = [
@@ -505,12 +577,10 @@ var logText = ''
 			onClick: chooseNoClimb
 		}))
 
-		Ui:render([
-			Ui:C:container({
-				align: 'center'
-				children: children
-			})
-		])
+		mainChildren.push(Ui:C:container({
+			align: 'center'
+			children: children
+		}))
 	} elif phase == 'step2' {
 		var children2 = [
 			Ui:C:text({
@@ -548,38 +618,34 @@ var logText = ''
 			onClick: @() { doStep2(2) }
 		}))
 
-		Ui:render([
-			Ui:C:container({
-				align: 'center'
-				children: children2
-			})
-		])
+		mainChildren.push(Ui:C:container({
+			align: 'center'
+			children: children2
+		}))
 	} elif phase == 'summit' {
-		Ui:render([
-			Ui:C:container({
-				align: 'center'
-				children: [
-					Ui:C:mfm({
-						text: `🏔️ :blobcat_yay: $[tada 登頂成功！]`
-						size: 1.6
-					})
-					Ui:C:text({
-						text: `ついに「{m.name}」の山頂に到達した！`
-						bold: true
-					})
-					Ui:C:text({
-						text: 'しかし、無事に下山するまでが登山です。下山ルートを選択しよう。'
-						size: 0.85
-					})
-					Ui:C:button({
-						text: '🚶 下山ルートの選択へ進む'
-						primary: true
-						rounded: true
-						onClick: beginDescend
-					})
-				]
-			})
-		])
+		mainChildren.push(Ui:C:container({
+			align: 'center'
+			children: [
+				Ui:C:mfm({
+					text: `🏔️ :blobcat_yay: $[tada 登頂成功！]`
+					size: 1.6
+				})
+				Ui:C:text({
+					text: `ついに「{m.name}」の山頂に到達した！`
+					bold: true
+				})
+				Ui:C:text({
+					text: 'しかし、無事に下山するまでが登山です。下山ルートを選択しよう。'
+					size: 0.85
+				})
+				Ui:C:button({
+					text: '🚶 下山ルートの選択へ進む'
+					primary: true
+					rounded: true
+					onClick: beginDescend
+				})
+			]
+		}))
 	} elif phase == 'descend' {
 		var childrenD = [
 			Ui:C:text({
@@ -613,42 +679,40 @@ var logText = ''
 			onClick: @() { doStep3(2) }
 		}))
 
-		Ui:render([
-			Ui:C:container({
-				align: 'center'
-				children: childrenD
-			})
-		])
+		mainChildren.push(Ui:C:container({
+			align: 'center'
+			children: childrenD
+		}))
 	} elif phase == 'end' {
 		let info = endingInfo()
-		Ui:render([
-			Ui:C:container({
-				align: 'center'
-				children: [
-					Ui:C:mfm({
-						text: info.effect
-						size: 1.5
-					})
-					Ui:C:text({
-						text: info.body
-					})
-					Ui:C:postFormButton({
-						text: '結果を投稿する'
-						rounded: true
-						primary: true
-						form: {
-							text: info.share
-						}
-					})
-					Ui:C:button({
-						text: '🔄 もう一度挑戦する（別ルートを試す）'
-						rounded: true
-						onClick: restart
-					})
-				]
-			})
-		])
+		mainChildren.push(Ui:C:container({
+			align: 'center'
+			children: [
+				Ui:C:mfm({
+					text: info.effect
+					size: 1.5
+				})
+				Ui:C:text({
+					text: info.body
+				})
+				Ui:C:postFormButton({
+					text: '結果を投稿する'
+					rounded: true
+					primary: true
+					form: {
+						text: info.share
+					}
+				})
+				Ui:C:button({
+					text: '🔄 もう一度挑戦する（別ルートを試す）'
+					rounded: true
+					onClick: restart
+				})
+			]
+		}))
 	}
+
+	Ui:render(mainChildren)
 }
 
 @main() {
