@@ -23,7 +23,7 @@
 //       2. 本格名山（適切なルートを選べば下山クリア可能）
 //       3. 険峰（登頂はできるが下山は全滅）
 //       4. 遭難必至の魔山（入山すると全滅。初手の「登山をしない」が正解）
-//   - エンディングは全22種（完全制覇、神回避、観光、登頂止まり、力尽きた3種、ネタエンド15種）。
+//   - エンディングは全27種（完全制覇、神回避、観光、登頂止まり、力尽きた3種、通常ネタエンド15種、魔山専用ネタエンド5種）。
 // ============================================================
 
 let lowMountains = [
@@ -51,11 +51,11 @@ let steepMountains = [
 ]
 
 let fatalMountains = [
-	{ name: "竜神山", elevation: "???m", location: "天変地異の霊峰" }
-	{ name: "阿蘇火口", elevation: "1592m", location: "超危険・噴火警戒区域" }
-	{ name: "バミューダ峰", elevation: "???m", location: "磁場異常地帯" }
-	{ name: "鬼ヶ岳", elevation: "2800m", location: "死の氷壁" }
-	{ name: "逢魔が山", elevation: "666m", location: "怪異多発・立ち入り禁止" }
+	{ name: "阿蘇火口", elevation: "1592m", location: "熊本県" }
+	{ name: "草津白根山", elevation: "2160m", location: "群馬県" }
+	{ name: "沖ノ島", elevation: "244m", location: "福岡県" }
+	{ name: "大台ヶ原", elevation: "1695m", location: "奈良県・三重県" }
+	{ name: "伊吹山", elevation: "1377m", location: "滋賀県・岐阜県" }
 ]
 
 let lowHints = [
@@ -80,10 +80,10 @@ let steepHints = [
 ]
 
 let fatalHints = [
-	"山頂付近に不穏な紫の暗雲が渦巻き、地響きのような唸りが響いている。"
-	"地元のおばあちゃんが『今日の山は絶対に入ったらいかん…』と呟いていた。"
-	"天気予報は晴れだが、手元の気圧計が異常なスピードで急降下している。"
-	"登山口の看板がなぜか赤字で激しく引っかかれたような跡がある…。"
+	"地元のおばあちゃんが『今日の山は絶対に入ったらいかん…』と真剣な顔で呟いていた。"
+	"天気予報は晴れのはずだが、山全体が不気味な暗雲に包まれ、気圧計が急降下している。"
+	"登山口に『危険・全面立入禁止』の厳重な警告ロープが張られ、不穏な空気が漂っている。"
+	"遠くで地響きのような唸りが轟き、鳥や動物たちが山から一斉に逃げ出してくる…！"
 ]
 
 var phase = 'start'
@@ -218,10 +218,27 @@ var logText = ''
 		persist()
 		render()
 	} else {
-		let failEndings = ['bear', 'tengu', 'ufo', 'deer_master', 'mushroom', 'exhausted_climb']
-		let endIdx = rng(0, (failEndings.len - 1))
-		ending = failEndings[endIdx]
-		addLog(`:owata_aa: 第1手でトラブル発生…！`)
+		if mountainType == 3 {
+			if choice == correct {
+				let fatalList = [
+					'fatal_brazil'
+					'fatal_emerald_slime'
+					'fatal_hyakki_yagyo'
+					'fatal_donburako_party'
+					'fatal_giant_kakigori'
+				]
+				ending = fatalList[mountainIdx]
+				addLog(`:owata_aa: 「{m.name}」でとんでもない事態に遭遇…！`)
+			} else {
+				ending = 'exhausted_climb'
+				addLog(`:owata_aa: 「{m.name}」の圧倒的な危険に阻まれ、登山口で力尽きた…！`)
+			}
+		} else {
+			let failEndings = ['bear', 'tengu', 'ufo', 'deer_master', 'mushroom', 'exhausted_climb']
+			let endIdx = rng(0, (failEndings.len - 1))
+			ending = failEndings[endIdx]
+			addLog(`:owata_aa: 第1手でトラブル発生…！`)
+		}
 		finish()
 	}
 }
@@ -433,6 +450,36 @@ var logText = ''
 			effect: `$[shake.speed=3 🪂] $[tada パラグライダーでサラバダー]`
 			body: '突風に流されてきたパラグライダーのインストラクターに服が引っかかり、一瞬で見知らぬ土地に飛ばされてしまいました。'
 			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=3 🪂] パラグライダーでサラバダー]{Str:lf}{Str:lf}「{m.name}」でパラグライダーに引っかかり、見知らぬ土地に飛ばされました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_brazil' {
+		{
+			effect: `$[shake.speed=0.2s 🇧🇷] $[tada 地球を貫通してブラジルへ] 💃🥁`
+			body: `足元の火口に大音響とともに巨大な地割れが発生！そのまま落ち続けたら、ブラジルのリオに突き抜けて陽気なサンバカーニバルに緊急参戦することになった。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=0.2s 🇧🇷] 地球を貫通してブラジルへ！]{Str:lf}{Str:lf}「{m.name}」で発生した地割れに落ち続けて、ブラジルでサンバを踊ることになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_emerald_slime' {
+		{
+			effect: `$[bounce 🧪🟢] $[tada 湯釜でスライム化]`
+			body: `有毒ガスを避けようとしてエメラルドグリーンの強酸性湯釜にドボン！しかし溶けるどころかプルプルの美肌スライム生命体に進化してしまい、温泉街へとぷるぷる跳ねながら帰還した。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[bounce 🧪🟢] 湯釜でスライム化！]{Str:lf}{Str:lf}「{m.name}」のエメラルドグリーンの湯釜に落ちたら美肌スライムに進化し、ぷるぷる帰還しました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_hyakki_yagyo' {
+		{
+			effect: `👺👻🥁 $[tada 百鬼夜行フェスで大盛り上がり]`
+			body: `立ち入り禁止の島で無数の妖怪や怪異が跋扈する「百鬼夜行」に取り囲まれて絶体絶命！…と思ったら、妖怪たちのビートが良すぎて無意識にオタ芸で踊り狂ってしまい、百鬼夜行のセンターダンサーに抜擢された。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 👺👻🥁 百鬼夜行フェス参戦]{Str:lf}{Str:lf}「{m.name}」の百鬼夜行に取り囲まれましたが、ノリでオタ芸を披露したらセンターダンサーに抜擢されました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_donburako_party' {
+		{
+			effect: `$[position.x=4,y=-3 $[scale.x=3,y=4 :mizube:]]$[shake :doge:]$[shake :aramaki_spin_banzai:]$[shake :blobbird_catch:] $[tada 激流に流され鬼ヶ島へ]`
+			body: `日本屈指の大豪雨で激流ラフティング状態に！「どんぶらこ〜」と流される道中で、同じく流されてきた野良犬・猿(?)・キジを咄嗟に救出。そのまま鬼ヶ島まで流されて討ち入りに行くことになった。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[position.x=4,y=-2 $[scale.x=3,y=3 :mizube:]]:doge::aramaki_spin_banzai::blobbird_catch: 激流に流され鬼ヶ島へ]{Str:lf}{Str:lf}「{m.name}」の豪雨でどんぶらこ〜と流され、途中で救出した仲間たちと共に鬼退治に向かいました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_giant_kakigori' {
+		{
+			effect: `🍧🧊 $[tada 11m豪雪！超巨大かき氷職人]`
+			body: `世界記録レベルの11mを超える豪雪に埋もれて身動き不能に！しかし持っていたシロップ（いちご＆練乳）を雪壁にかけたら奇跡の絶品かき氷が完成。登山客やスキーヤーに大ウケして即完売した。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 🍧🧊 11m豪雪！超巨大かき氷職人]{Str:lf}{Str:lf}「{m.name}」の世界記録11mの豪雪に埋まりましたが、シロップをかけて巨大かき氷屋さんを開業しました️。{Str:lf}{THIS_URL}`
 		}
 	} else {
 		{
