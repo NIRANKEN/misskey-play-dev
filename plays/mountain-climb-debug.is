@@ -10,7 +10,7 @@
 //   - 画面上部の折りたたみパネルから以下を操作可能:
 //     1. 山タイプ切り替え（超低山 / 本格名山 / 険峰 / 魔山）
 //     2. フェーズ直接ジャンプ（第1手 / 第2手 / 登頂 / 下山）
-//     3. 全22種のエンディング直接プレビュー（ドロップダウン選択）
+//     3. 全27種のエンディング直接プレビュー（ドロップダウン選択）
 //     4. セーブデータ削除＆初期化
 // ============================================================
 
@@ -441,33 +441,33 @@ var logText = ''
 		}
 	} elif ending == 'fatal_brazil' {
 		{
-			effect: `$[shake.speed=0.2s 🇧🇷] $[tada 地球を貫通してブラジルへ！] 💃🥁`
-			body: `足元の火口に大音響とともに巨大な地割れが発生！そのまま地球のマントルをすり抜けて真っ逆さまに落ち続けたら、ブラジルのリオに突き抜けて陽気なサンバカーニバルに緊急参戦することになった。`
-			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=0.2s 🇧🇷] 地球を貫通してブラジルへ！]{Str:lf}{Str:lf}「{m.name}」の地割れに落ちたら地球の裏側（ブラジル）に突き抜け、サンバを踊ることになりました。💃🥁{Str:lf}{THIS_URL}`
+			effect: `$[shake.speed=0.2s 🇧🇷] $[tada 地球を貫通してブラジルへ] 💃🥁`
+			body: `足元の火口に大音響とともに巨大な地割れが発生！そのまま落ち続けたら、ブラジルのリオに突き抜けて陽気なサンバカーニバルに緊急参戦することになった。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=0.2s 🇧🇷] 地球を貫通してブラジルへ！]{Str:lf}{Str:lf}「{m.name}」で発生した地割れに落ち続けて、ブラジルでサンバを踊ることになりました。{Str:lf}{THIS_URL}`
 		}
 	} elif ending == 'fatal_emerald_slime' {
 		{
-			effect: `$[bounce 🧪🟢] $[tada 湯釜でスライム化！]`
+			effect: `$[bounce 🧪🟢] $[tada 湯釜でスライム化]`
 			body: `有毒ガスを避けようとしてエメラルドグリーンの強酸性湯釜にドボン！しかし溶けるどころかプルプルの美肌スライム生命体に進化してしまい、温泉街へとぷるぷる跳ねながら帰還した。`
-			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[bounce 🧪🟢] 湯釜でスライム化！]{Str:lf}{Str:lf}「{m.name}」のエメラルドグリーンの湯釜に落ちたら美肌スライムに進化し、ぷるぷる帰還しました🧪🟢{Str:lf}{THIS_URL}`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[bounce 🧪🟢] 湯釜でスライム化！]{Str:lf}{Str:lf}「{m.name}」のエメラルドグリーンの湯釜に落ちたら美肌スライムに進化し、ぷるぷる帰還しました。{Str:lf}{THIS_URL}`
 		}
 	} elif ending == 'fatal_hyakki_yagyo' {
 		{
 			effect: `👺👻🥁 $[tada 百鬼夜行フェスで大盛り上がり]`
 			body: `立ち入り禁止の島で無数の妖怪や怪異が跋扈する「百鬼夜行」に取り囲まれて絶体絶命！…と思ったら、妖怪たちのビートが良すぎて無意識にオタ芸で踊り狂ってしまい、百鬼夜行のセンターダンサーに抜擢された。`
-			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 👺👻🥁 百鬼夜行フェス参戦]{Str:lf}{Str:lf}「{m.name}」の百鬼夜行に取り囲まれましたが、ノリでオタ芸を披露したらセンターダンサーに抜擢されました👻🥁💃{Str:lf}{THIS_URL}`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 👺👻🥁 百鬼夜行フェス参戦]{Str:lf}{Str:lf}「{m.name}」の百鬼夜行に取り囲まれましたが、ノリでオタ芸を披露したらセンターダンサーに抜擢されました。{Str:lf}{THIS_URL}`
 		}
 	} elif ending == 'fatal_donburako_party' {
 		{
-			effect: `🌊🍑🐕🐒🐦 $[tada どんぶらこ！桃太郎爆誕]`
-			body: `日本屈指の大豪雨で足元がホワイトウォーターの激流ラフティング状態に！「どんぶらこ〜」と流される道中で、同じく流されてきた野良犬・猿・キジを咄嗟に救出。下流でお爺さんに一本釣りされた瞬間「お前が桃太郎じゃ！」と認定され、全員で装備を整えて鬼ヶ島へ討ち入りに行くことになった。`
-			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 🌊🍑🐕🐒🐦 どんぶらこ！桃太郎爆誕]{Str:lf}{Str:lf}「{m.name}」の豪雨でどんぶらこ〜と流され、途中で救出した犬猿キジと共にお爺さんに拾われ鬼退治に向かいました🍑👹⚔️{Str:lf}{THIS_URL}`
+			effect: `$[position.x=4,y=-3 $[scale.x=3,y=4 :mizube:]]$[shake :doge:]$[shake :aramaki_spin_banzai:]$[shake :blobbird_catch:] $[tada 激流に流され鬼ヶ島へ]`
+			body: `日本屈指の大豪雨で激流ラフティング状態に！「どんぶらこ〜」と流される道中で、同じく流されてきた野良犬・猿(?)・キジを咄嗟に救出。そのまま鬼ヶ島まで流されて討ち入りに行くことになった。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[position.x=4,y=-2 $[scale.x=3,y=3 :mizube:]]:doge::aramaki_spin_banzai::blobbird_catch: 激流に流され鬼ヶ島へ]{Str:lf}{Str:lf}「{m.name}」の豪雨でどんぶらこ〜と流され、途中で救出した仲間たちと共に鬼退治に向かいました。{Str:lf}{THIS_URL}`
 		}
 	} elif ending == 'fatal_giant_kakigori' {
 		{
 			effect: `🍧🧊 $[tada 11m豪雪！超巨大かき氷職人]`
 			body: `世界記録レベルの11mを超える豪雪に埋もれて身動き不能に！しかし持っていたシロップ（いちご＆練乳）を雪壁にかけたら奇跡の絶品かき氷が完成。登山客やスキーヤーに大ウケして即完売した。`
-			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 🍧🧊 11m豪雪！超巨大かき氷職人]{Str:lf}{Str:lf}「{m.name}」の世界記録11mの豪雪に埋まりましたが、シロップをかけて巨大かき氷屋さんを開業しました🍧❄️{Str:lf}{THIS_URL}`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 🍧🧊 11m豪雪！超巨大かき氷職人]{Str:lf}{Str:lf}「{m.name}」の世界記録11mの豪雪に埋まりましたが、シロップをかけて巨大かき氷屋さんを開業しました️。{Str:lf}{THIS_URL}`
 		}
 	} else {
 		{
