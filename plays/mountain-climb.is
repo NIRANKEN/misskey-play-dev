@@ -1,0 +1,717 @@
+/// @ 1.0.0
+
+// ============================================================
+// 本日の登山チャレンジ！🏔️ :blobcat_dotadota_run:
+// ------------------------------------------------------------
+// Misskey Play（旧Flash）用の AiScript スクリプトです。
+//
+// ■ 使い方
+//   1. Misskeyで新しい Play を作成し、このファイルの内容をまるごと
+//      「スクリプト」欄に貼り付けてください。
+//   2. タイトル・概要（summary）・公開範囲は、このスクリプト自体には
+//      含まれていません。Play編集画面のフォームで別途設定してください。
+//        タイトル例: 本日の登山チャレンジ！
+//        概要例    : 3手のルート選択で山頂と下山を目指すテキストアドベンチャー。
+//                    遭難確定の魔山を「登山しない」で回避する直感も重要！（日替わり）
+//
+// ■ 仕様メモ
+//   - 今日の山と現地のヒントは日替わり固定（Math:gen_rng）です。
+//   - 結果画面から「もう一度挑戦する」で、その日の山を何度でもやり直して別ルートを試せます。
+//   - ゲームは全3手（登り2手＋下山1手）でテンポよく決着します。
+//   - 今日の山タイプは4種類（各25%の完全均等）：
+//       1. 超低山・お散歩（登頂は確実、下山は3択中2つ成功・1つネタエンド）
+//       2. 本格名山（適切なルートを選べば下山クリア可能）
+//       3. 険峰（登頂はできるが下山は全滅）
+//       4. 遭難必至の魔山（入山すると全滅。初手の「登山をしない」が正解）
+//   - エンディングは全27種（完全制覇、神回避、観光、登頂止まり、力尽きた3種、通常ネタエンド15種、魔山専用ネタエンド5種）。
+// ============================================================
+
+let lowMountains = [
+	{ name: "天保山", elevation: "4.5m", location: "大阪府" }
+	{ name: "日和山", elevation: "3m", location: "宮城県" }
+	{ name: "円山", elevation: "225m", location: "北海道" }
+	{ name: "稲荷山", elevation: "233m", location: "京都府" }
+	{ name: "城山", elevation: "107m", location: "鹿児島県" }
+]
+
+let standardMountains = [
+	{ name: "富士山", elevation: "3776m", location: "山梨県・静岡県" }
+	{ name: "立山", elevation: "3003m", location: "富山県" }
+	{ name: "大山", elevation: "1729m", location: "鳥取県" }
+	{ name: "白馬岳", elevation: "2932m", location: "長野県・富山県" }
+	{ name: "乗鞍岳", elevation: "3026m", location: "長野県・岐阜県" }
+]
+
+let steepMountains = [
+	{ name: "槍ヶ岳", elevation: "3180m", location: "長野県・岐阜県" }
+	{ name: "剱岳", elevation: "2999m", location: "富山県" }
+	{ name: "奥穂高岳", elevation: "3190m", location: "長野県・岐阜県" }
+	{ name: "谷川岳", elevation: "1977m", location: "群馬県・新潟県" }
+	{ name: "利尻山", elevation: "1721m", location: "北海道" }
+]
+
+let fatalMountains = [
+	{ name: "阿蘇火口", elevation: "1592m", location: "熊本県" }
+	{ name: "草津白根山", elevation: "2160m", location: "群馬県" }
+	{ name: "沖ノ島", elevation: "244m", location: "福岡県" }
+	{ name: "大台ヶ原", elevation: "1695m", location: "奈良県・三重県" }
+	{ name: "伊吹山", elevation: "1377m", location: "滋賀県・岐阜県" }
+]
+
+let lowHints = [
+	"小鳥のさえずりが心地よく、散歩中の犬とすれ違った。"
+	"山麓のお茶屋さんからみたらし団子の甘い香りが漂っている。"
+	"遠足の園児たちが楽しそうにどんぐりを拾っている。"
+	"爽やかなそよ風が吹き抜けて、足取りも軽やかだ。"
+]
+
+let standardHints = [
+	"尾根道は爽快そうだが、沢沿いのルートは少し湿っているようだ。"
+	"午後は山頂付近に雲が出る予報。早めの判断が鍵になりそうだ。"
+	"岩場ルートは風が強そうだが、樹林帯は比較的穏やかに見える。"
+	"足元の小石が少し滑りやすい。ルートの見極めが大切だ。"
+]
+
+let steepHints = [
+	"午前中は視界良好だが、夕方から寒冷前線が通過する予報が出ている。"
+	"山頂の岩肌は神々しく輝いているが、下山路の谷間に濃い霧が湧いてきた。"
+	"急峻な岩稜帯が続く。日暮れまでに下りきるのは至難の業かもしれない。"
+	"山頂アタックの好機だが、数時間後まで天気が保つか不安がある。"
+]
+
+let fatalHints = [
+	"地元のおばあちゃんが『今日の山は絶対に入ったらいかん…』と真剣な顔で呟いていた。"
+	"天気予報は晴れのはずだが、山全体が不気味な暗雲に包まれ、気圧計が急降下している。"
+	"登山口に『危険・全面立入禁止』の厳重な警告ロープが張られ、不穏な空気が漂っている。"
+	"遠くで地響きのような唸りが轟き、鳥や動物たちが山から一斉に逃げ出してくる…！"
+]
+
+var phase = 'start'
+var step = 1
+var mountainType = 0
+var mountainIdx = 0
+var hintIdx = 0
+var ending = null
+var logText = ''
+
+@today() {
+	`{Date:year()}-{Date:month()}-{Date:day()}`
+}
+
+@addLog(line) {
+	logText = if logText == '' { line } else { `{logText}{Str:lf}{line}` }
+}
+
+@getMountain() {
+	if mountainType == 0 {
+		lowMountains[mountainIdx]
+	} elif mountainType == 1 {
+		standardMountains[mountainIdx]
+	} elif mountainType == 2 {
+		steepMountains[mountainIdx]
+	} else {
+		fatalMountains[mountainIdx]
+	}
+}
+
+@getHint() {
+	if mountainType == 0 {
+		lowHints[hintIdx]
+	} elif mountainType == 1 {
+		standardHints[hintIdx]
+	} elif mountainType == 2 {
+		steepHints[hintIdx]
+	} else {
+		fatalHints[hintIdx]
+	}
+}
+
+@persist() {
+	Mk:save('mc_state', {
+		date: today()
+		phase: phase
+		step: step
+		mountainType: mountainType
+		mountainIdx: mountainIdx
+		hintIdx: hintIdx
+		ending: ending
+		logText: logText
+	})
+}
+
+@finish() {
+	phase = 'end'
+	persist()
+	render()
+}
+
+@restart() {
+	phase = 'start'
+	step = 1
+	ending = null
+	logText = ''
+	persist()
+	render()
+}
+
+@initSeed() {
+	let seed = `{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}`
+	let rng = Math:gen_rng(seed)
+
+	mountainType = rng(0, 3)
+
+	if mountainType == 0 {
+		mountainIdx = rng(0, (lowMountains.len - 1))
+		hintIdx = rng(0, (lowHints.len - 1))
+	} elif mountainType == 1 {
+		mountainIdx = rng(0, (standardMountains.len - 1))
+		hintIdx = rng(0, (standardHints.len - 1))
+	} elif mountainType == 2 {
+		mountainIdx = rng(0, (steepMountains.len - 1))
+		hintIdx = rng(0, (steepHints.len - 1))
+	} else {
+		mountainIdx = rng(0, (fatalMountains.len - 1))
+		hintIdx = rng(0, (fatalHints.len - 1))
+	}
+}
+
+@chooseNoClimb() {
+	let m = getMountain()
+	if mountainType == 3 {
+		ending = 'kanko_great'
+		addLog(`🍵 登山をしないを選択 → 【大正解！】危険な「{m.name}」を回避！`)
+	} else {
+		ending = 'kanko_normal'
+		addLog(`🍵 登山をしないを選択 → のんびり山麓を観光！`)
+	}
+	finish()
+}
+
+@getCorrectChoice(stepNum) {
+	let m = getMountain()
+	let seed = `{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}:{m.name}:step{stepNum}`
+	let rng = Math:gen_rng(seed)
+	rng(0, 2)
+}
+
+@doStep1(choice) {
+	let m = getMountain()
+	let correct = getCorrectChoice(1)
+	let failSeed = `{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}:{m.name}:step1:fail:{choice}`
+	let rng = Math:gen_rng(failSeed)
+
+	var success = false
+	if mountainType == 0 {
+		success = true
+	} elif mountainType == 1 {
+		success = (choice == correct)
+	} elif mountainType == 2 {
+		success = (choice == correct)
+	} else {
+		success = false
+	}
+
+	if success {
+		step = 2
+		phase = 'step2'
+		addLog(`:blobcat_dotadota_walk: 第1手成功！「{m.name}」の中腹（5合目）まで登り詰めた！`)
+		persist()
+		render()
+	} else {
+		if mountainType == 3 {
+			if choice == correct {
+				let fatalList = [
+					'fatal_brazil'
+					'fatal_emerald_slime'
+					'fatal_hyakki_yagyo'
+					'fatal_donburako_party'
+					'fatal_giant_kakigori'
+				]
+				ending = fatalList[mountainIdx]
+				addLog(`:owata_aa: 「{m.name}」でとんでもない事態に遭遇…！`)
+			} else {
+				ending = 'exhausted_climb'
+				addLog(`:owata_aa: 「{m.name}」の圧倒的な危険に阻まれ、登山口で力尽きた…！`)
+			}
+		} else {
+			let failEndings = ['bear', 'tengu', 'ufo', 'deer_master', 'mushroom', 'exhausted_climb']
+			let endIdx = rng(0, (failEndings.len - 1))
+			ending = failEndings[endIdx]
+			addLog(`:owata_aa: 第1手でトラブル発生…！`)
+		}
+		finish()
+	}
+}
+
+@doStep2(choice) {
+	let m = getMountain()
+	let correct = getCorrectChoice(2)
+	let failSeed = `{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}:{m.name}:step2:fail:{choice}`
+	let rng = Math:gen_rng(failSeed)
+
+	var success = false
+	if mountainType == 0 {
+		success = true
+	} elif mountainType == 1 {
+		success = (choice == correct)
+	} elif mountainType == 2 {
+		success = (choice == correct)
+	} else {
+		success = false
+	}
+
+	if success {
+		phase = 'summit'
+		addLog(`🏔️ 第2手成功！ついに「{m.name}」の山頂に到達した！`)
+		persist()
+		render()
+	} else {
+		let failEndings = ['dream', 'gacha_reunion', 'bird_watching', 'isekai', 'cat_cafe', 'exhausted_summit']
+		let endIdx = rng(0, (failEndings.len - 1))
+		ending = failEndings[endIdx]
+		addLog(`:owata_aa: 山頂直前で予期せぬ事態が…！`)
+		finish()
+	}
+}
+
+@beginDescend() {
+	phase = 'descend'
+	step = 3
+	persist()
+	render()
+}
+
+@doStep3(choice) {
+	let m = getMountain()
+	let correct = getCorrectChoice(3)
+	let failSeed = `{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}:{m.name}:step3:fail:{choice}`
+	let rng = Math:gen_rng(failSeed)
+
+	var success = false
+	if mountainType == 0 {
+		success = (choice != correct)
+	} elif mountainType == 1 {
+		success = (choice == correct)
+	} elif mountainType == 2 {
+		success = false
+	} else {
+		success = false
+	}
+
+	if success {
+		ending = 'summit_descend'
+		addLog(`:supertada: 下山ルート突破！無事に「{m.name}」の麓まで帰還した！`)
+		finish()
+	} else {
+		if mountainType == 2 {
+			let steepEndings = ['summit_stuck', 'onsen', 'lodge', 'paraglider', 'exhausted_descend']
+			let endIdx = rng(0, (steepEndings.len - 1))
+			ending = steepEndings[endIdx]
+		} else {
+			let failEndings = ['ekiden_scout', 'sns_addiction', 'onsen', 'lodge', 'paraglider', 'exhausted_descend']
+			let endIdx = rng(0, (failEndings.len - 1))
+			ending = failEndings[endIdx]
+		}
+		addLog(`:owata_aa: 下山中にアクシデント発生…！`)
+		finish()
+	}
+}
+
+@endingInfo() {
+	let m = getMountain()
+	if ending == 'summit_descend' {
+		{
+			effect: `:supertada: $[x2 $[sparkle 登頂＆下山完了！]] :blobcat_yay:`
+			body: `見事、「{m.name}」の山頂を制覇し、無事に下山完了！完全制覇おめでとう！！`
+			share: `本日の登山チャレンジ！【完全制覇】 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :blobcat_yay: 登頂＆下山完了！]{Str:lf}{Str:lf}今日の山「{m.name}」（{m.elevation}・{m.location}）を見事踏破し、無事に生還しました！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'kanko_great' {
+		{
+			effect: `:supertada: $[x2 $[sparkle 今日は登山をやめて正解！【神回避】]] :blobcat_yay:`
+			body: `「直感を信じて大正解！」今日の「{m.name}」は遭難必至の魔山でした。登山をせず、麓でゆっくり温泉に浸かり温泉まんじゅうを堪能して大勝利！`
+			share: `本日の登山チャレンジ！【神回避】 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :blobcat_yay: 今日は登山をやめて正解！]{Str:lf}{Str:lf}今日の山「{m.name}」は危険な魔山でした！直感を信じて登山を回避し、温泉街でのんびり大勝利！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'kanko_normal' {
+		{
+			effect: `$[shake.speed=0.1s :blobcat_burebure: 登山コワイヨ...]`
+			body: `「コワイ！無理は禁物！」今日は登山をせず、麓で観光することに。べっ...べつに、登山が怖かったわけじゃないんだからね！`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=0.1s :blobcat_burebure:] 登山コワイヨ...]{Str:lf}{Str:lf}今日の山「{m.name}」には登らず観光しました。べっ...べつに、登山が怖かったわけじゃないんだからね！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'summit_stuck' {
+		{
+			effect: `:home_oide: $[tada 登頂達成！…だが下山断念]`
+			body: `「{m.name}」の登頂には成功したものの、下山路の天候急変と日没に阻まれ下山を断念。山小屋で温かいシチューを食べて一泊することになりました。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :home_oide: 登頂達成！…だが下山断念]{Str:lf}{Str:lf}「{m.name}」の山頂には立てましたが、下山できず山小屋で一泊になりました…！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'exhausted_climb' {
+		{
+			effect: `:owata_aa: $[tada 登山口で力尽きた…]`
+			body: '登り始めてすぐ、急坂でふくらはぎがつってしまい動けなくなった…。無理せずまた今度リベンジしよう。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :owata_aa: 登山口で力尽きた…]{Str:lf}{Str:lf}「{m.name}」の登山口付近で力尽きてしまいました…。また明日リベンジ！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'exhausted_summit' {
+		{
+			effect: `:owata_aa: $[tada 山頂直前で力尽きた…]`
+			body: '山頂はもう目の前だったのに、あと一歩のところで足が動かなくなってしまった…。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :owata_aa: 山頂直前で力尽きた…]{Str:lf}{Str:lf}「{m.name}」の山頂直前で力尽きました…。あと少しだったのに！{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'exhausted_descend' {
+		{
+			effect: `:owata_aa: $[tada 下山途中で力尽きた…]`
+			body: '山頂からの帰り道、膝が笑ってしまい一歩も歩けなくなった。救助隊に手を振って迎えを待つことに。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :owata_aa: 下山途中で力尽きた…]{Str:lf}{Str:lf}「{m.name}」からの下山途中で力尽きてしまいました…。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'dream' {
+		{
+			effect: `:blobcat_ohuton_haide_agemasyou_ne: $[tada あれ？夢だった…？]`
+			body: '足を滑らせた…！と思った次の瞬間、目の前には見慣れた自分の部屋の天井が。全部、夢だったらしい。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :blobcat_ohuton_haide_agemasyou_ne: あれ？夢だった…？]{Str:lf}{Str:lf}「{m.name}」に登っていたと思ったら、ずっと布団の中に居たみたい。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'ufo' {
+		{
+			effect: `:space_blobcat: $[tada ようこそ宇宙へ]`
+			body: '夜空に光る物体を発見…と思ったら未確認飛行物体（UFO）だった。宇宙人と意気投合し、そのまま宇宙旅行に出発した。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :space_blobcat: ようこそ宇宙へ]{Str:lf}{Str:lf}「{m.name}」でUFOと遭遇し、そのまま宇宙旅行に出発しました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'bear' {
+		{
+			effect: `$[tada :grizzly:] …仲良し？`
+			body: '茂みからクマがひょっこり現れた。なぜか意気投合し、木の実を分け合いながらそのまま一緒に冬眠することになった。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[tada :grizzly:] …仲良し？]{Str:lf}{Str:lf}「{m.name}」でクマと意気投合し、一緒に冬眠することになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'tengu' {
+		{
+			effect: `$[flip :blobbird_catch:] $[position.x=-2 👺] $[tada 修行の道へ]`
+			body: '木の上から天狗が舞い降りてきた。「見どころがある」とスカウトされ、そのまま山籠りして修行することになった。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[flip :blobbird_catch:] $[position.x=-2 👺] 修行の道へ]{Str:lf}{Str:lf}「{m.name}」で天狗にスカウトされ、修行することになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'gacha_reunion' {
+		{
+			effect: `:meowflower: $[tada 運命の再会]`
+			body: 'ふと前を見ると見覚えのあるあの人が。運命を感じて立ち尽くしてしまった。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :meowflower: 運命の再会]{Str:lf}{Str:lf}「{m.name}」であの人との運命の再会を果たしました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'bird_watching' {
+		{
+			effect: `:meowsurprised_bird_run: $[tada 夢中で観察]`
+			body: '珍しい野鳥が目の前にとまった。夢中で観察してシャッターを切っているうちに、すっかり日が暮れていた。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :meowsurprised_bird_run: 夢中で観察]{Str:lf}{Str:lf}「{m.name}」で野鳥観察に夢中になり、気づけば日が暮れていました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'ekiden_scout' {
+		{
+			effect: `:blobcat_running: $[tada まさかのスカウト]`
+			body: '下山中の軽快な走りが、たまたま通りかかった名門実業団駅伝部の監督の目に留まり、電撃スカウトされた。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :blobcat_running: まさかのスカウト]{Str:lf}{Str:lf}「{m.name}」の下山ダッシュが目に留まり、駅伝チームにスカウトされました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'sns_addiction' {
+		{
+			effect: `:bakunetu_god_sumaho:$[shake 📱] $[tada :misskey:がやめられない]`
+			body: '山頂からの絶景写真をMisskeyに投稿したら万バズ。通知とリプライ返信に追われ、下山どころではなくなってしまった。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :bakunetu_god_sumaho:$[shake 📱] :misskey:がやめられない]{Str:lf}{Str:lf}「{m.name}」の写真がMisskeyで大バズりし、下山できなくなりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'onsen' {
+		{
+			effect: `:hotsprings: $[tada 良い湯だな〜… ] $[position.y=-0.5 :aramaki_chibinofu:]`
+			body: '下山ルートの途中で見つけた秘湯があまりに極楽で、気づけば日が暮れていた。このまま温泉に居続けるのも悪くないかも...'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :hotsprings: 良い湯だな〜… $[position.y=-0.5 :aramaki_chibinofu:]]{Str:lf}{Str:lf}「{m.name}」の秘湯が気持ちよすぎて出られなくなりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'lodge' {
+		{
+			effect: `:ablobcatcoffee: $[tada このコーヒーうま...]`
+			body: '山小屋のマスターが淹れてくれたネルドリップ珈琲に感動し、気づけばそのまま住み込みバイトを始めていた。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :ablobcatcoffee: このコーヒーうま...]{Str:lf}{Str:lf}山小屋の珈琲に感動し、「{m.name}」で住み込みバイトを始めました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'deer_master' {
+		{
+			effect: `:sikapuppu:🦌 $[tada 運命のMy Deer]`
+			body: '登山道にいた鹿の群れに囲まれてしまった。持っていたシカせんべいをあげたら懐かれ、あなたは鹿の群れから抜け出すことはできなくなった。(ぬん！)'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :sikapuppu:🦌 運命のMy Deer]{Str:lf}{Str:lf}「{m.name}」で鹿の群れに囲まれ、抜け出せなくなりました。(ぬん！){Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'mushroom' {
+		{
+			effect: `:kinoko_no_yama: $[tada キノコ狩りに熱中]`
+			body: '登山道の脇に色とりどりのキノコを発見。夢中で収穫しているうちにリュックがパンパンになったので、お家に帰ることにした。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :kinoko_no_yama: キノコ狩りに熱中]{Str:lf}{Str:lf}「{m.name}」でキノコ狩りに熱中し、リュックを満杯にして帰宅しました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'isekai' {
+		{
+			effect: `:aramaki_spin_banzai: $[tada 異世界転移]`
+			body: '深い霧のトンネルを抜けたら、そこは見知らぬファンタジー世界だった。ギルドに登録して冒険者として生きることになった。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :aramaki_spin_banzai: 異世界転移]{Str:lf}{Str:lf}「{m.name}」の登山道を抜けたら異世界に転移して冒険者になりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'cat_cafe' {
+		{
+			effect: `:meow_bongo_cat: $[tada 猫に引き止められた]`
+			body: '山頂のベンチで休んでいたら、どこからともなく人懐っこい山猫たちが集結。膝の上を完全に占領されて動けなくなった。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :meow_bongo_cat: 猫に引き止められた]{Str:lf}{Str:lf}「{m.name}」の山頂で山猫たちに膝を占領され、身動きが取れなくなりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'paraglider' {
+		{
+			effect: `$[shake.speed=3 🪂] $[tada パラグライダーでサラバダー]`
+			body: '突風に流されてきたパラグライダーのインストラクターに服が引っかかり、一瞬で見知らぬ土地に飛ばされてしまいました。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=3 🪂] パラグライダーでサラバダー]{Str:lf}{Str:lf}「{m.name}」でパラグライダーに引っかかり、見知らぬ土地に飛ばされました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_brazil' {
+		{
+			effect: `$[shake.speed=0.2s 🇧🇷] $[tada 地球を貫通してブラジルへ] 💃🥁`
+			body: `足元の火口に大音響とともに巨大な地割れが発生！そのまま落ち続けたら、ブラジルのリオに突き抜けて陽気なサンバカーニバルに緊急参戦することになった。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[shake.speed=0.2s 🇧🇷] 地球を貫通してブラジルへ！]{Str:lf}{Str:lf}「{m.name}」で発生した地割れに落ち続けて、ブラジルでサンバを踊ることになりました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_emerald_slime' {
+		{
+			effect: `$[bounce 🧪🟢] $[tada 湯釜でスライム化]`
+			body: `有毒ガスを避けようとしてエメラルドグリーンの強酸性湯釜にドボン！しかし溶けるどころかプルプルの美肌スライム生命体に進化してしまい、温泉街へとぷるぷる跳ねながら帰還した。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[bounce 🧪🟢] 湯釜でスライム化！]{Str:lf}{Str:lf}「{m.name}」のエメラルドグリーンの湯釜に落ちたら美肌スライムに進化し、ぷるぷる帰還しました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_hyakki_yagyo' {
+		{
+			effect: `👺👻🥁 $[tada 百鬼夜行フェスで大盛り上がり]`
+			body: `立ち入り禁止の島で無数の妖怪や怪異が跋扈する「百鬼夜行」に取り囲まれて絶体絶命！…と思ったら、妖怪たちのビートが良すぎて無意識にオタ芸で踊り狂ってしまい、百鬼夜行のセンターダンサーに抜擢された。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 👺👻🥁 百鬼夜行フェス参戦]{Str:lf}{Str:lf}「{m.name}」の百鬼夜行に取り囲まれましたが、ノリでオタ芸を披露したらセンターダンサーに抜擢されました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_donburako_party' {
+		{
+			effect: `$[position.x=4,y=-3 $[scale.x=3,y=4 :mizube:]]$[shake :doge:]$[shake :aramaki_spin_banzai:]$[shake :blobbird_catch:] $[tada 激流に流され鬼ヶ島へ]`
+			body: `日本屈指の大豪雨で激流ラフティング状態に！「どんぶらこ〜」と流される道中で、同じく流されてきた野良犬・猿(?)・キジを咄嗟に救出。そのまま鬼ヶ島まで流されて討ち入りに行くことになった。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 $[position.x=4,y=-2 $[scale.x=3,y=3 :mizube:]]:doge::aramaki_spin_banzai::blobbird_catch: 激流に流され鬼ヶ島へ]{Str:lf}{Str:lf}「{m.name}」の豪雨でどんぶらこ〜と流され、途中で救出した仲間たちと共に鬼退治に向かいました。{Str:lf}{THIS_URL}`
+		}
+	} elif ending == 'fatal_giant_kakigori' {
+		{
+			effect: `🍧🧊 $[tada 11m豪雪！超巨大かき氷職人]`
+			body: `世界記録レベルの11mを超える豪雪に埋もれて身動き不能に！しかし持っていたシロップ（いちご＆練乳）を雪壁にかけたら奇跡の絶品かき氷が完成。登山客やスキーヤーに大ウケして即完売した。`
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 🍧🧊 11m豪雪！超巨大かき氷職人]{Str:lf}{Str:lf}「{m.name}」の世界記録11mの豪雪に埋まりましたが、シロップをかけて巨大かき氷屋さんを開業しました️。{Str:lf}{THIS_URL}`
+		}
+	} else {
+		{
+			effect: `:blobcat_ohuton_kakete_agemasyoune: $[tada 今日は帰って寝ようかな]`
+			body: '今日は山麓でのんびり過ごしました。'
+			share: `本日の登山チャレンジ！ 🏔️ :blobcat_dotadota_run:{Str:lf}$[x2 :blobcat_ohuton_kakete_agemasyoune: 今日は帰って寝ようかな]{Str:lf}{Str:lf}今日は登山をせず、帰ってのんびり過ごしました。{Str:lf}{THIS_URL}`
+		}
+	}
+}
+
+@render() {
+	let m = getMountain()
+	let hint = getHint()
+
+	if phase == 'start' {
+		var children = [
+			Ui:C:text({
+				text: '⛰️ 本日の登山チャレンジ！'
+				size: 1.4
+				bold: true
+			})
+			Ui:C:mfm({
+				text: `今日の山: **{m.name}**（{m.elevation} / {m.location}）`
+				size: 1.1
+				bold: true
+			})
+			Ui:C:container({
+				bgColor: '#24331f'
+				fgColor: '#ffffff'
+				padding: 12
+				rounded: true
+				children: [
+					Ui:C:mfm({
+						text: `👀 **現地の様子**: {hint}`
+					})
+				]
+			})
+			Ui:C:text({
+				text: '全3手（登り2手＋下山1手）で登頂と下山を目指そう！'
+				size: 0.85
+			})
+		]
+
+		if logText != '' {
+			children.push(Ui:C:mfm({ text: logText }))
+		}
+
+		children.push(Ui:C:text({
+			text: '【第1手】登山口〜中腹（5合目）のルートを選択:'
+			bold: true
+		}))
+		children.push(Ui:C:button({
+			text: '🌲 樹林帯ルートを進む'
+			rounded: true
+			onClick: @() { doStep1(0) }
+		}))
+		children.push(Ui:C:button({
+			text: '🧗 岩壁直登ショートカット'
+			rounded: true
+			onClick: @() { doStep1(1) }
+		}))
+		children.push(Ui:C:button({
+			text: '🌊 沢沿いコースをたどる'
+			rounded: true
+			onClick: @() { doStep1(2) }
+		}))
+		children.push(Ui:C:button({
+			text: '🍵 登山をしない（観光する）'
+			rounded: true
+			onClick: chooseNoClimb
+		}))
+
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: children
+			})
+		])
+	} elif phase == 'step2' {
+		var children2 = [
+			Ui:C:text({
+				text: `⛰️ {m.name}（中腹・5合目）`
+				size: 1.3
+				bold: true
+			})
+			Ui:C:text({
+				text: '中腹に到達！ここから山頂アタックへ挑みます！'
+				size: 0.9
+			})
+		]
+
+		if logText != '' {
+			children2.push(Ui:C:mfm({ text: logText }))
+		}
+
+		children2.push(Ui:C:text({
+			text: '【第2手】山頂アタックのルートを選択:'
+			bold: true
+		}))
+		children2.push(Ui:C:button({
+			text: '🏔️ 尾根道アタック'
+			rounded: true
+			onClick: @() { doStep2(0) }
+		}))
+		children2.push(Ui:C:button({
+			text: '⛓️ 鎖場ルート突破'
+			rounded: true
+			onClick: @() { doStep2(1) }
+		}))
+		children2.push(Ui:C:button({
+			text: '🚶 迂回トラバース道'
+			rounded: true
+			onClick: @() { doStep2(2) }
+		}))
+
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: children2
+			})
+		])
+	} elif phase == 'summit' {
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: [
+					Ui:C:mfm({
+						text: `🏔️ :blobcat_yay: $[tada 登頂成功！]`
+						size: 1.6
+					})
+					Ui:C:text({
+						text: `ついに「{m.name}」の山頂に到達した！`
+						bold: true
+					})
+					Ui:C:text({
+						text: 'しかし、無事に下山するまでが登山です。下山ルートを選択しよう。'
+						size: 0.85
+					})
+					Ui:C:button({
+						text: '🚶 下山ルートの選択へ進む'
+						primary: true
+						rounded: true
+						onClick: beginDescend
+					})
+				]
+			})
+		])
+	} elif phase == 'descend' {
+		var childrenD = [
+			Ui:C:text({
+				text: `🚶 {m.name}（下山中…）`
+				size: 1.3
+				bold: true
+			})
+			Ui:C:text({
+				text: '【第3手】最後の決断！無事に麓まで生還できるルートはどれだ？'
+				size: 0.9
+			})
+		]
+
+		if logText != '' {
+			childrenD.push(Ui:C:mfm({ text: logText }))
+		}
+
+		childrenD.push(Ui:C:button({
+			text: '🥾 整備された本道を下る'
+			rounded: true
+			onClick: @() { doStep3(0) }
+		}))
+		childrenD.push(Ui:C:button({
+			text: '🏃 一気に駆け下りる'
+			rounded: true
+			onClick: @() { doStep3(1) }
+		}))
+		childrenD.push(Ui:C:button({
+			text: '♨️ 温泉街連絡道をたどる'
+			rounded: true
+			onClick: @() { doStep3(2) }
+		}))
+
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: childrenD
+			})
+		])
+	} elif phase == 'end' {
+		let info = endingInfo()
+		Ui:render([
+			Ui:C:container({
+				align: 'center'
+				children: [
+					Ui:C:mfm({
+						text: info.effect
+						size: 1.5
+					})
+					Ui:C:text({
+						text: info.body
+					})
+					Ui:C:postFormButton({
+						text: '結果を投稿する'
+						rounded: true
+						primary: true
+						form: {
+							text: info.share
+						}
+					})
+					Ui:C:button({
+						text: '🔄 もう一度挑戦する（別ルートを試す）'
+						rounded: true
+						onClick: restart
+					})
+				]
+			})
+		])
+	}
+}
+
+@main() {
+	let saved = Mk:load('mc_state')
+	if (saved != null) && (saved.date == today()) {
+		phase = saved.phase
+		step = saved.step
+		mountainType = saved.mountainType
+		mountainIdx = saved.mountainIdx
+		hintIdx = saved.hintIdx
+		ending = saved.ending
+		logText = saved.logText
+	} else {
+		initSeed()
+	}
+	render()
+}
+
+main()
